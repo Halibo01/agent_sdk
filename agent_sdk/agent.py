@@ -10,7 +10,8 @@ class Agent:
         tools: Optional[Dict[str, Callable]] = None,
         max_steps: int = 10,
         handoff_msg: Optional[str] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None
     ):
         self.name = name
         self.model = model
@@ -19,6 +20,7 @@ class Agent:
         self.max_steps = max_steps
         self.handoff_msg = handoff_msg
         self.generation_config = generation_config or {}
+        self.user_id = user_id
         self.memory = []
 
     def system_prompt(self) -> str:
