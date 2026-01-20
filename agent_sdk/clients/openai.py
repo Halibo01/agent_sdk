@@ -11,18 +11,44 @@ class OpenAIClient(BaseClient):
         except ImportError:
             raise ImportError("Please install openai: pip install openai")
 
+    def _clean_kwargs(self, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Filters kwargs to include only parameters supported by OpenAI API.
+        Also handles common mapping differences if necessary.
+        """
+        supported_params = {
+            "temperature", "top_p", "n", "stream", "stop", "max_tokens", 
+            "presence_penalty", "frequency_penalty", "logit_bias", "user", 
+            "response_format", "seed", "tools", "tool_choice"
+        }
+        
+        cleaned = {}
+        for k, v in kwargs.items():
+            if k in supported_params:
+                cleaned[k] = v
+            # Common mappings (e.g. if user passes max_output_tokens, map to max_tokens)
+            elif k == "max_output_tokens":
+                cleaned["max_tokens"] = v
+                
+        return cleaned
+
     def chat(self, model: str, messages: List[Dict], **kwargs) -> Dict[str, Any]:
-        resp = self.client.chat.completions.create(model=model, messages=messages, **kwargs)
+        params = self._clean_kwargs(kwargs)
+        resp = self.client.chat.completions.create(model=model, messages=messages, **params)
         msg = resp.choices[0].message
         return {"content": msg.content, "tool_calls": [tc.model_dump() for tc in msg.tool_calls] if msg.tool_calls else None, "raw": resp}
 
     async def chat_async(self, model: str, messages: List[Dict], **kwargs) -> Dict[str, Any]:
-        resp = await self.async_client.chat.completions.create(model=model, messages=messages, **kwargs)
+        params = self._clean_kwargs(kwargs)
+        resp = await self.async_client.chat.completions.create(model=model, messages=messages, **params)
         msg = resp.choices[0].message
         return {"content": msg.content, "tool_calls": [tc.model_dump() for tc in msg.tool_calls] if msg.tool_calls else None, "raw": resp}
 
     def chat_stream(self, model: str, messages: List[Dict], **kwargs) -> Generator[StreamEvent, None, None]:
-        stream = self.client.chat.completions.create(model=model, messages=messages, stream=True, **kwargs)
+        params = self._clean_kwargs(kwargs)
+        # Ensure stream is True
+        params["stream"] = True
+        stream = self.client.chat.completions.create(model=model, messages=messages, **params)
         for chunk in stream:
             if not chunk.choices: continue
             delta = chunk.choices[0].delta
@@ -31,7 +57,10 @@ class OpenAIClient(BaseClient):
                 for tc in delta.tool_calls: yield StreamEvent("tool_call", tc.model_dump())
 
     async def chat_stream_async(self, model: str, messages: List[Dict], **kwargs) -> AsyncGenerator[StreamEvent, None]:
-        stream = await self.async_client.chat.completions.create(model=model, messages=messages, stream=True, **kwargs)
+        params = self._clean_kwargs(kwargs)
+        # Ensure stream is True
+        params["stream"] = True
+        stream = await self.async_client.chat.completions.create(model=model, messages=messages, **params)
         async for chunk in stream:
             if not chunk.choices: continue
             delta = chunk.choices[0].delta

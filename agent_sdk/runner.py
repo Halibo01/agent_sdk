@@ -171,6 +171,7 @@ class Runner:
                         model=agent.model,
                         messages=agent.memory,
                         tools=tools,
+                        **agent.generation_config
                     )
                 except Exception as e:
                     error_msg = str(e)
@@ -373,6 +374,7 @@ class Runner:
                         model=agent.model,
                         messages=agent.memory,
                         tools=tools,
+                        **agent.generation_config
                     )
                 except Exception as e:
                     error_msg = str(e)

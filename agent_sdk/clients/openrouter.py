@@ -25,30 +25,53 @@ class OpenRouterClient(BaseClient):
         }
         self.session.headers.update(self.headers)
 
+    def _clean_kwargs(self, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Maps common parameter names to OpenRouter/OpenAI compatible names.
+        OpenRouter is quite flexible, so we mostly pass through, but handle known mappings.
+        """
+        cleaned = kwargs.copy()
+        
+        # Common mappings
+        if "max_output_tokens" in cleaned:
+            cleaned["max_tokens"] = cleaned.pop("max_output_tokens")
+        if "stop_sequences" in cleaned:
+            cleaned["stop"] = cleaned.pop("stop_sequences")
+            
+        return cleaned
+
     def chat(self, model: str, messages: List[Dict], **kwargs) -> Dict[str, Any]:
-        resp = self.session.post(f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, **kwargs})
+        params = self._clean_kwargs(kwargs)
+        resp = self.session.post(f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, **params})
         resp.raise_for_status()
         data = resp.json()
         choice = data["choices"][0]
         return {"content": choice["message"].get("content"), "tool_calls": choice["message"].get("tool_calls"), "raw": data}
 
     async def chat_async(self, model: str, messages: List[Dict], **kwargs) -> Dict[str, Any]:
+        params = self._clean_kwargs(kwargs)
         async with httpx.AsyncClient() as client:
-            resp = await client.post(f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, **kwargs}, headers=self.headers)
+            resp = await client.post(f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, **params}, headers=self.headers)
             resp.raise_for_status()
             data = resp.json()
         choice = data["choices"][0]
         return {"content": choice["message"].get("content"), "tool_calls": choice["message"].get("tool_calls"), "raw": data}
 
     def chat_stream(self, model: str, messages: List[Dict], **kwargs) -> Generator[StreamEvent, None, None]:
-        with self.session.post(f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, "stream": True, **kwargs}, stream=True) as resp:
+        params = self._clean_kwargs(kwargs)
+        # Ensure stream is True
+        params["stream"] = True
+        with self.session.post(f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, **params}, stream=True) as resp:
             resp.raise_for_status()
             for line in resp.iter_lines():
                 yield from self._process_line(line)
 
     async def chat_stream_async(self, model: str, messages: List[Dict], **kwargs) -> AsyncGenerator[StreamEvent, None]:
+        params = self._clean_kwargs(kwargs)
+        # Ensure stream is True
+        params["stream"] = True
         async with httpx.AsyncClient() as client:
-            async with client.stream("POST", f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, "stream": True, **kwargs}, headers=self.headers) as resp:
+            async with client.stream("POST", f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, **params}, headers=self.headers) as resp:
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
                     for event in self._process_line(line.encode('utf-8')): yield event

@@ -1,5 +1,5 @@
 # agent.py
-from typing import Optional, Dict, Callable
+from typing import Optional, Dict, Callable, Any
 
 class Agent:
     def __init__(
@@ -10,9 +10,7 @@ class Agent:
         tools: Optional[Dict[str, Callable]] = None,
         max_steps: int = 10,
         handoff_msg: Optional[str] = None,
-        client_type: Optional[str] = None, # New parameter
-        api_key: Optional[str] = None,      # New parameter
-        mode: str = "sync"                 # New parameter: 'sync' or 'async'
+        generation_config: Optional[Dict[str, Any]] = None
     ):
         self.name = name
         self.model = model
@@ -20,9 +18,7 @@ class Agent:
         self.tools = tools or {}
         self.max_steps = max_steps
         self.handoff_msg = handoff_msg
-        self.client_type = client_type # Store new parameter
-        self.api_key = api_key         # Store new parameter
-        self.mode = mode               # Store mode
+        self.generation_config = generation_config or {}
         self.memory = []
 
     def system_prompt(self) -> str:

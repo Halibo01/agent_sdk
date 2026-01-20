@@ -6,7 +6,6 @@ from .storage import SQLiteLogger
 from .reflection import SelfReflection
 from .rag import SimpleRAG, ChromaRAG
 
-__version__ = "0.1.0"
 
 __all__ = [
     "FileLogger",
