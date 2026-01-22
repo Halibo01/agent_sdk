@@ -352,6 +352,59 @@ async def VisitWebpage_async(url:str):
 
 
 
+@tool_message("Making brave search as '{q}'")
+def BraveSearch(q: str, website_count: int = 5):
+    """
+    Perform a web search using Brave Search API.
+    Returns structured results similar to LangSearch.
+    """
+    api_key = os.getenv("BRAVE_API_KEY")
+    if not api_key:
+        return "Error: BRAVE_API_KEY environment variable is not set."
+
+    url = "https://api.search.brave.com/res/v1/web/search"
+    headers = {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": api_key
+    }
+    params = {"q": q, "count": website_count}
+
+    try:
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        results = data.get("web", {}).get("results", [])
+        webpages = {"webpages": []}
+
+        for item in results:
+            # Brave doesn't always give a long summary, so we use description.
+            # We also check scrapability (simulated based on typical bot rules or helper)
+            item_url = item.get("url", "")
+            
+            webpages["webpages"].append({
+                "name": item.get("title", ""),
+                "url": item_url,
+                "snippet": item.get("description", ""), # Brave's snippet
+                "summary": item.get("description", "")[:800] + "...", # Same as snippet for now
+                "datePublished": item.get("age", ""), # Brave provides 'age' sometimes
+                "is_scrapable": is_scrapable(item_url)
+            })
+            
+        return str(webpages)
+
+    except Exception as e:
+        return f"Error during Brave Search: {e}"
+
+@tool_message("Making brave search as '{q}' (Async)")
+async def BraveSearch_async(q: str, website_count: int = 5):
+    """
+    Asynchronous wrapper for BraveSearch.
+    """
+    return await asyncio.to_thread(BraveSearch, q, website_count)
+
+
 @tool_message("Saving content to '{filename}'")
 def save_file(filename:str, content:str) -> str:
     """

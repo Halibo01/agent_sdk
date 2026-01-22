@@ -200,7 +200,7 @@ def main():
     
     manager = Agent(
         name="Manager",
-        model="mistralai/mistral-7b-instruct", 
+        model="xiaomi/mimo-v2-flash:free", 
         instructions="""
         You are the Project Manager.
         1. Analyze the user request.
@@ -213,7 +213,7 @@ def main():
 
     researcher = Agent(
         name="Researcher",
-        model="mistralai/mistral-7b-instruct",
+        model="mistralai/devstral-2512:free",
         instructions="""
         You are an Expert Researcher.
         1. Search the web for information.
@@ -226,7 +226,7 @@ def main():
 
     coder = Agent(
         name="Coder",
-        model="mistralai/mistral-7b-instruct",
+        model="mistralai/devstral-2512:free",
         instructions="""
         You are a Senior Software Engineer.
         1. Write code or create files as requested.

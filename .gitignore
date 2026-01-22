@@ -59,3 +59,17 @@ Desktop.ini
 .ipynb_checkpoints
 profile_default/
 ipython_config.py
+
+# --- User Exclusions ---
+# Tests and API Server files as requested
+tests/
+api_server.py
+test_api_live.py
+api_live.py
+AgentServer.spec
+# Additional user exclusions
+*.bat
+test_sessions.py
+test_sessions_demo.py
+README_API.md
+generate_secrets.py

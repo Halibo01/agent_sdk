@@ -1,1 +1,25 @@
--e .[all]
+# Core API Server
+fastapi
+uvicorn
+pydantic
+python-dotenv
+requests
+httpx
+
+# AI Clients
+google-generativeai
+openai
+
+# RAG & Database
+chromadb
+numpy
+
+# Web Searching & Scraping Tools
+beautifulsoup4
+wikipedia
+duckduckgo-search
+
+# Utilities
+aiofiles
+python-multipart
+colorama

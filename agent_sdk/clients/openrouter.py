@@ -6,8 +6,7 @@ from ..events import StreamEvent
 from .base import BaseClient
 
 class OpenRouterClient(BaseClient):
-    def __init__(self, api_key: str = None, base_url: str = "https://openrouter.ai/api"):
-        self.base_url = base_url.rstrip("/")
+    def __init__(self, api_key: str = None, base_url: str = None): # base_url is ignored now
         self.session = requests.Session()
         
         if api_key is None:
@@ -21,28 +20,29 @@ class OpenRouterClient(BaseClient):
         self.headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
-            "User-Agent": "agent-sdk/1.0"
+            "User-Agent": "agent-sdk/1.0",
+            "HTTP-Referer": "https://agent-sdk.local", 
+            "X-Title": "Agent SDK"
         }
         self.session.headers.update(self.headers)
+        # HARDCODED ENDPOINT
+        self.endpoint = "https://openrouter.ai/api/v1/chat/completions"
 
     def _clean_kwargs(self, kwargs: Dict[str, Any]) -> Dict[str, Any]:
         """
         Maps common parameter names to OpenRouter/OpenAI compatible names.
-        OpenRouter is quite flexible, so we mostly pass through, but handle known mappings.
         """
         cleaned = kwargs.copy()
-        
-        # Common mappings
         if "max_output_tokens" in cleaned:
             cleaned["max_tokens"] = cleaned.pop("max_output_tokens")
         if "stop_sequences" in cleaned:
             cleaned["stop"] = cleaned.pop("stop_sequences")
-            
         return cleaned
 
     def chat(self, model: str, messages: List[Dict], **kwargs) -> Dict[str, Any]:
         params = self._clean_kwargs(kwargs)
-        resp = self.session.post(f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, **params})
+        # Use hardcoded endpoint
+        resp = self.session.post(self.endpoint, json={"model": model, "messages": messages, **params})
         resp.raise_for_status()
         data = resp.json()
         choice = data["choices"][0]
@@ -51,7 +51,8 @@ class OpenRouterClient(BaseClient):
     async def chat_async(self, model: str, messages: List[Dict], **kwargs) -> Dict[str, Any]:
         params = self._clean_kwargs(kwargs)
         async with httpx.AsyncClient() as client:
-            resp = await client.post(f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, **params}, headers=self.headers)
+            # Use hardcoded endpoint
+            resp = await client.post(self.endpoint, json={"model": model, "messages": messages, **params}, headers=self.headers)
             resp.raise_for_status()
             data = resp.json()
         choice = data["choices"][0]
@@ -59,19 +60,29 @@ class OpenRouterClient(BaseClient):
 
     def chat_stream(self, model: str, messages: List[Dict], **kwargs) -> Generator[StreamEvent, None, None]:
         params = self._clean_kwargs(kwargs)
-        # Ensure stream is True
         params["stream"] = True
-        with self.session.post(f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, **params}, stream=True) as resp:
+        # Use hardcoded endpoint
+        with self.session.post(self.endpoint, json={"model": model, "messages": messages, **params}, stream=True) as resp:
             resp.raise_for_status()
             for line in resp.iter_lines():
                 yield from self._process_line(line)
 
     async def chat_stream_async(self, model: str, messages: List[Dict], **kwargs) -> AsyncGenerator[StreamEvent, None]:
         params = self._clean_kwargs(kwargs)
-        # Ensure stream is True
         params["stream"] = True
+        
+        # Mask API Key in logs
+        safe_headers = self.headers.copy()
+        if "Authorization" in safe_headers:
+            safe_headers["Authorization"] = "Bearer sk-***"
+            
         async with httpx.AsyncClient() as client:
-            async with client.stream("POST", f"{self.base_url}/v1/chat/completions", json={"model": model, "messages": messages, **params}, headers=self.headers) as resp:
+            # Use hardcoded endpoint
+            async with client.stream("POST", self.endpoint, json={"model": model, "messages": messages, **params}, headers=self.headers) as resp:
+                if resp.status_code != 200:
+                    print(f"[DEBUG] ERROR STATUS: {resp.status_code}")
+                    print(f"[DEBUG] ERROR BODY: {await resp.aread()}")
+                
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
                     for event in self._process_line(line.encode('utf-8')): yield event
