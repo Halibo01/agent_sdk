@@ -74,5 +74,5 @@ jobs:
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       # Eğer Trusted Publishing kullanmıyorsanız, Repository Secrets altında PYPI_API_TOKEN tanımlamanız gerekir.
-      # with:
-      #   password: ${{ secrets.PYPI_API_TOKEN }}
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
