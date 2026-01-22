@@ -27,7 +27,7 @@ Inspired by libraries like LangChain and AutoGen, it provides a lightweight, con
 Install easily via pip:
 
 ```bash
-pip install agent_sdk
+pip install agent-sdk-core
 ```
 
 ### 👨‍💻 For Development
