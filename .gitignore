@@ -73,3 +73,9 @@ test_sessions.py
 test_sessions_demo.py
 README_API.md
 generate_secrets.py
+# Voice & Audio
+*.mp3
+tts_output/
+test_voice.py
+test_voice_stream.py
+agent_sdk/middleware/voice.py

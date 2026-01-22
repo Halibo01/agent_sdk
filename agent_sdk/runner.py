@@ -120,6 +120,41 @@ class Runner:
             })
         return schemas
 
+    def run(self, agent: Agent, task: str, chat_history: List[Dict] = None) -> str:
+        """
+        Runs the agent synchronously and returns the final response string.
+        """
+        final_output = ""
+        stream = self.run_stream(agent, task, chat_history)
+        for event in stream:
+            if event.type == "token":
+                final_output += str(event.data)
+            elif event.type == "final":
+                # 'final' event data might be a dict {"output": "..."} or just string
+                data = event.data
+                if isinstance(data, dict):
+                    final_output = data.get("output", "")
+                else:
+                    final_output = str(data)
+        return final_output
+
+    async def run_async(self, agent: Agent, task: str, chat_history: List[Dict] = None) -> str:
+        """
+        Runs the agent asynchronously and returns the final response string.
+        """
+        final_output = ""
+        stream = self.run_stream_async(agent, task, chat_history)
+        async for event in stream:
+            if event.type == "token":
+                final_output += str(event.data)
+            elif event.type == "final":
+                data = event.data
+                if isinstance(data, dict):
+                    final_output = data.get("output", "")
+                else:
+                    final_output = str(data)
+        return final_output
+
     def run_stream(self, agent: Agent, task: str, chat_history: List[Dict] = None) -> Generator[AgentStreamEvent, None, None]:
         """
         Ana Çalıştırma Döngüsü (Persistent Memory Destekli).
@@ -191,12 +226,24 @@ class Runner:
                     # Agent ismini işle (Runner sorumluluğu)
                     event.agent_name = agent.name
                     
+                    yield event
+
+                    # --- MIDDLEWARE STREAM HOOK ---
+                    for mw in self.middlewares:
+                        new_events = mw.process_stream_event(event, agent, self)
+                        if new_events:
+                            for ne in new_events:
+                                ne.agent_name = agent.name
+                                yield ne
+                    # ------------------------------
+                    
                     if event.type == "token":
                         current_content += str(event.data)
-                        yield event
+                        # yield event (Moved up)
                     
                     elif event.type == "reasoning":
-                        yield event
+                        # yield event (Moved up)
+                        pass
                     
                     elif event.type == "tool_call":
                         # Tool call chunk birleştirme mantığı
@@ -388,12 +435,24 @@ class Runner:
                 async for event in stream:
                     event.agent_name = agent.name
                     
+                    yield event
+
+                    # --- MIDDLEWARE STREAM HOOK (ASYNC) ---
+                    for mw in self.middlewares:
+                        new_events = await mw.process_stream_event_async(event, agent, self)
+                        if new_events:
+                            for ne in new_events:
+                                ne.agent_name = agent.name
+                                yield ne
+                    # --------------------------------------
+                    
                     if event.type == "token":
                         current_content += str(event.data)
-                        yield event
+                        # yield event (Moved up)
                     
                     elif event.type == "reasoning":
-                        yield event
+                        # yield event (Moved up)
+                        pass
                     
                     elif event.type == "tool_call":
                         tc_chunk = event.data
