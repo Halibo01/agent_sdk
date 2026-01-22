@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent_sdk"
-version = "0.1.0"
+name = "agent-sdk-core"
+version = "0.1.1"
 description = "A hybrid (sync/async) AI Agent Framework with middleware and swarm support."
 readme = "README.md"
 requires-python = ">=3.9"
