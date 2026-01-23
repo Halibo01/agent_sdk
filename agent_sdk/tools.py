@@ -425,3 +425,26 @@ def save_file(filename:str, content:str) -> str:
         return f"File created successfully. File path is '{os.path.abspath(filename)}'."
     except Exception as e:
         return f"File couldn't be created. Error: {e}"
+
+@tool_message("Reading uploaded file '{filename}'")
+def read_uploaded_file(filename: str) -> str:
+    """
+    Reads a file exclusively from the 'uploads' directory.
+    Prevents 'Path Traversal' attacks by verifying the resolved path.
+    """
+    upload_dir = os.path.abspath("uploads")
+    requested_path = os.path.abspath(os.path.join(upload_dir, filename))
+
+    # SECURITY CHECK: Path Traversal Prevention
+    # Ensure the requested path actually starts with the uploads directory path.
+    if not requested_path.startswith(upload_dir):
+        return f"Security Error: Access denied. You can only read files inside '{upload_dir}'."
+    
+    if not os.path.exists(requested_path):
+        return f"Error: File '{filename}' not found in uploads."
+
+    try:
+        with open(requested_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        return f"Error reading file: {e}"

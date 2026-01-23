@@ -34,7 +34,7 @@ from .tools import (
 )
 
 # Versiyon bilgisi
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 # Kullanıcı "from agent_sdk import *" derse ne gelsin?
 __all__ = [

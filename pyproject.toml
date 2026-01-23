@@ -1,10 +1,10 @@
-[build-system]
+﻿[build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-sdk-core"
-version = "0.1.3"
+version = "0.1.4"
 description = "A hybrid (sync/async) AI Agent Framework with middleware and swarm support."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -53,8 +53,10 @@ Homepage = "https://github.com/Halibo01/agent_sdk"
 Repository = "https://github.com/Halibo01/agent_sdk.git"
 Issues = "https://github.com/Halibo01/agent_sdk/issues"
 
-[tool.setuptools]
-packages = ["agent_sdk"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agent_sdk*"]
+namespaces = false
 
 [tool.pytest.ini_options]
 minversion = "6.0"
