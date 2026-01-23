@@ -35,7 +35,7 @@ pip install agent-sdk-core
 If you want to contribute or modify the source code:
 
 ```bash
-git clone https://github.com/username/agent_sdk.git
+git clone https://github.com/Halibo01/agent_sdk.git
 cd agent_sdk
 pip install -e .[all]
 ```
@@ -531,5 +531,3 @@ To use the SDK, you'll need API keys from your preferred AI providers.
 ## 📄 License
 
 MIT License.
-
-```

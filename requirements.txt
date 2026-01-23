@@ -23,3 +23,7 @@ duckduckgo-search
 aiofiles
 python-multipart
 colorama
+
+# Documentation
+mkdocs
+mkdocs-material
