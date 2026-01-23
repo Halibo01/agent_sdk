@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-sdk-core"
-version = "0.1.4"
+version = "0.1.5"
 description = "A hybrid (sync/async) AI Agent Framework with middleware and swarm support."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Halibo01", email = "halilsan1994@hotmail.com"}
 ]
 keywords = ["ai", "agent", "llm", "swarm", "middleware", "framework", "rag"]
 classifiers = [
@@ -29,6 +29,8 @@ dependencies = [
     "colorama",
     "python-dotenv",
     "markdownify",
+    "mkdocs>=1.4.0",
+    "mkdocs-material>=9.0.0"
 ]
 
 [project.optional-dependencies]
@@ -49,7 +51,7 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Halibo01/agent_sdk"
+Homepage = "https://docs.agent-sdk-core.dev"
 Repository = "https://github.com/Halibo01/agent_sdk.git"
 Issues = "https://github.com/Halibo01/agent_sdk/issues"
 

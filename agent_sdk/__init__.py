@@ -33,10 +33,9 @@ from .tools import (
     save_file
 )
 
-# Versiyon bilgisi
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 
-# Kullanıcı "from agent_sdk import *" derse ne gelsin?
+
 __all__ = [
     # Clients
     "BaseClient",
