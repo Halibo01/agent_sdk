@@ -7,7 +7,8 @@ repo_name: Halibo01/agent_sdk
 plugins:
   - tags
   - search
-  - se
+  - minify:
+      minify_html: true
 theme:
   name: material
   logo: material/robot
