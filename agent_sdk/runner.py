@@ -1,3 +1,15 @@
+"""
+Runner Module
+
+The `Runner` is the execution engine of the SDK. It manages the ReAct loop:
+1. Sending messages to the LLM.
+2. Parsing tool calls.
+3. Executing tools (including middleware interception).
+4. Feeding results back to the LLM.
+
+Documentation: https://docs.agent-sdk-core.dev/modules/agents
+"""
+
 import json
 import inspect
 import asyncio
@@ -5,7 +17,7 @@ from typing import List, Dict, Any, Generator, AsyncGenerator, get_type_hints, O
 from .agent import Agent
 from .events import AgentStreamEvent
 
-# 1. TİP HARİTASI (Python -> JSON Schema)
+# 1. TYPE MAP (Python -> JSON Schema)
 PYTHON_TO_JSON = {
     int: "integer",
     float: "number",
@@ -15,8 +27,8 @@ PYTHON_TO_JSON = {
     dict: "object"
 }
 
-# 2. ÖZEL MODELLER (Reasoning/Thinking)
-# Bu modeller Tool kullanamaz ve System Prompt sevmezler.
+# 2. SPECIAL MODELS (Reasoning/Thinking)
+# These models cannot use Tools and do not like System Prompts.
 REASONING_KEYWORDS = [
     "o1-", "o1-mini", "o1-preview", 
     "r1", "reasoner", "think", 
@@ -26,28 +38,28 @@ REASONING_KEYWORDS = [
 class Runner:
     def __init__(self, client):
         self.client = client
-        # Caller ID için Yığın (Stack) Yapısı
-        # En altta her zaman "User" vardır.
+        # Stack Structure for Caller ID
+        # "User" is always at the bottom.
         self.agent_stack = ["User"]
         self.middlewares = []
 
     def use(self, middleware):
-        """Runner'a bir middleware ekler."""
+        """Adds a middleware to the Runner."""
         self.middlewares.append(middleware)
 
     @property
     def current_sender(self) -> str:
-        """Şu an bu fonksiyonu çağıran (Aktif) ajanın ismini döner."""
+        """Returns the name of the agent currently invoking this function (Active)."""
         return self.agent_stack[-1] if self.agent_stack else "User"
 
     def _is_reasoning_model(self, model_name: str) -> bool:
-        """Modelin tool destekleyip desteklemediğini kontrol eder."""
+        """Checks if the model supports tools."""
         return any(keyword in model_name.lower() for keyword in REASONING_KEYWORDS)
 
     def _prepare_messages(self, agent: Agent, input_text: str, history: List[Dict]) -> List[Dict]:
         """
-        Reasoning modelleri için 'system' rolünü 'user'a çevirir.
-        Normal modeller için standart yapı kurar.
+        Converts 'system' role to 'user' for reasoning models.
+        Sets up standard structure for normal models.
         """
         messages = []
         is_reasoning = self._is_reasoning_model(agent.model)
@@ -65,25 +77,25 @@ class Runner:
                     "content": agent.system_prompt()
                 })
 
-        # 2. Geçmişi Ekle
+        # 2. Add History
         if history:
             messages.extend(history)
 
-        # 3. Yeni Girdi
+        # 3. New Input
         messages.append({"role": "user", "content": input_text})
         
         return messages
 
     def _tool_schema(self, agent: Agent) -> Optional[List[Dict]]:
         """
-        Agent'ın fonksiyonlarını JSON şemasına çevirir.
-        Eğer model reasoning ise Tool göndermez.
+        Converts agent's functions to JSON schema.
+        Does not send Tools if model is reasoning.
         """
-        # A) Reasoning Modelleri Tool Kullanamaz
+        # A) Reasoning Models Cannot Use Tools
         if self._is_reasoning_model(agent.model):
             return None
 
-        # B) Tool Yoksa None Dön
+        # B) Return None if No Tools
         if not agent.tools:
             return None
 
@@ -157,23 +169,23 @@ class Runner:
 
     def run_stream(self, agent: Agent, task: str, chat_history: List[Dict] = None) -> Generator[AgentStreamEvent, None, None]:
         """
-        Ana Çalıştırma Döngüsü (Persistent Memory Destekli).
+        Main Execution Loop (Persistent Memory Supported).
         """
         
         # 0. MIDDLEWARE: Before Run
         for mw in self.middlewares:
             mw.before_run(agent, self)
 
-        # 1. CALLER ID: Bu agent'ı yığına ekle (Aktif çalışan yap)
+        # 1. CALLER ID: Add this agent to stack (Make active)
         self.agent_stack.append(agent.name)
 
-        # 2. HAFIZA BAŞLATMA (Eğer boşsa)
+        # 2. INITIALIZE MEMORY (If empty)
         if not agent.memory:
-            # A) System Prompt Ekle
+            # A) Add System Prompt
             if agent.instructions:
                 is_reasoning = self._is_reasoning_model(agent.model)
                 if is_reasoning:
-                    # Reasoning modelleri system rolünü sevmez, user olarak ekle
+                    # Reasoning models dislike system role, add as user
                     agent.memory.append({
                         "role": "user", 
                         "content": f"Instructions:\n{agent.system_prompt()}"
@@ -184,24 +196,24 @@ class Runner:
                         "content": agent.system_prompt()
                     })
             
-            # B) Dışarıdan gelen history varsa ekle (İlk başlangıç için opsiyonel)
+            # B) Add external history if provided (Optional for initial start)
             if chat_history:
                 agent.memory.extend(chat_history)
 
-        # 3. YENİ GÖREVİ EKLE
-        # Görevi her çağrıldığında hafızaya ekliyoruz.
+        # 3. ADD NEW TASK
+        # Add task to memory every time it is called.
         agent.memory.append({"role": "user", "content": task})
 
         try:
-            # Sonsuz döngü koruması
+            # Infinite loop protection
             for step in range(agent.max_steps):
                 
-                # Tool Şemasını Hazırla
+                # Prepare Tool Schema
                 tools = self._tool_schema(agent)
 
-                # B) API İSTEĞİ (STREAM)
+                # B) API REQUEST (STREAM)
                 try:
-                    # ARTIK DOĞRUDAN HAFIZAYI KULLANIYORUZ
+                    # NOW USING MEMORY DIRECTLY
                     stream = self.client.chat_stream(
                         model=agent.model,
                         messages=agent.memory,
@@ -211,7 +223,7 @@ class Runner:
                 except Exception as e:
                     error_msg = str(e)
                     if hasattr(e, 'response') and e.response is not None:
-                        # API'den dönen detaylı hatayı ekle
+                        # Add detailed error from API
                         error_msg += f"\nServer Response: {e.response.text}"
                     
                     print(f"\nAPI ERROR ({agent.name}): {error_msg}")
@@ -223,7 +235,7 @@ class Runner:
                 
                 # --- STREAM LOOP ---
                 for event in stream:
-                    # Agent ismini işle (Runner sorumluluğu)
+                    # Process Agent Name (Runner responsibility)
                     event.agent_name = agent.name
                     
                     yield event
@@ -246,7 +258,7 @@ class Runner:
                         pass
                     
                     elif event.type == "tool_call":
-                        # Tool call chunk birleştirme mantığı
+                        # Logic to merge tool call chunks
                         tc_chunk = event.data
                         idx = tc_chunk.get("index", 0)
                         
@@ -258,12 +270,12 @@ class Runner:
                             if fn.get("name"): current_tool_calls[idx]["name"] = fn["name"]
                             if fn.get("arguments"): current_tool_calls[idx]["arguments"] += fn["arguments"]
                         
-                        # UI Efekti için (Stream sırasında)
-                        yield AgentStreamEvent("tool_call_ready", [tc_chunk], agent.name) # Type: tool_call_chunk diyebiliriz
+                        # For UI Effect (During Stream)
+                        yield AgentStreamEvent("tool_call_ready", [tc_chunk], agent.name) # Type: tool_call_chunk
 
-                # --- KARAR ANI (LOOP SONU) ---
+                # --- DECISION MOMENT (END OF LOOP) ---
                 
-                # 1. Model cevabını HAFIZAYA EKLE
+                # 1. ADD Model Response to MEMORY
                 assistant_msg = {"role": "assistant", "content": current_content if current_content else None}
                 
                 tool_calls_data = []
@@ -279,12 +291,12 @@ class Runner:
                 
                 agent.memory.append(assistant_msg)
 
-                # 2. Tool Çağrısı Yoksa -> BİTİR
+                # 2. IF No Tool Calls -> FINISH
                 if not tool_calls_data:
                     yield AgentStreamEvent("final", {"output": current_content}, agent.name)
                     return
 
-                # 3. Tool Varsa -> ÇALIŞTIR
+                # 3. IF Tools -> EXECUTE
                 for tc in tool_calls_data:
                     call_id = tc["id"]
                     func_name = tc["function"]["name"]
@@ -295,11 +307,11 @@ class Runner:
                     except:
                         args = {}
 
-                    # --- MIDDLEWARE KONTROLÜ (Human-in-the-loop vb.) ---
+                    # --- MIDDLEWARE CHECK (Human-in-the-loop etc.) ---
                     should_run = True
                     for mw in self.middlewares:
-                        # Eğer bir middleware False dönerse zinciri kır ve çalıştırma
-                        # GÜNCELLEME: call_id eklendi
+                        # If a middleware returns False, break chain and do not execute
+                        # UPDATE: call_id added
                         if not mw.before_tool_execution(agent, self, func_name, args, call_id):
                             should_run = False
                             break
@@ -308,27 +320,27 @@ class Runner:
                         msg = f"Tool '{func_name}' execution was blocked by a middleware."
                         print(f"\n{msg}")
                         
-                        # Kullanıcıya bildir
+                        # Notify User
                         yield AgentStreamEvent("tool_result", {
                             "name": func_name, 
                             "output": msg,
                             "arguments": args
                         }, agent.name)
                         
-                        # Hafızaya ekle
+                        # Add to Memory
                         agent.memory.append({
                             "role": "tool",
                             "tool_call_id": call_id,
                             "name": func_name,
                             "content": msg
                         })
-                        continue # Tool'u çalıştırma, sıradakine geç
+                        continue # Do not execute tool, skip to next
                     # ---------------------------------------------------
 
-                    # Tool Bul ve Çalıştır
+                    # Find and Execute Tool
                     if func_name in agent.tools:
                         
-                        # UI Bildirimi
+                        # UI Notification
                         tool_func = agent.tools[func_name]
                         tmpl = getattr(tool_func, "_message_template", None)
                         
@@ -346,7 +358,7 @@ class Runner:
                         }], agent.name)
 
                         try:
-                            # FONKSİYON ÇAĞRISI
+                            # FUNCTION CALL
                             result = agent.tools[func_name](**args)
                             result_str = str(result)
                         except Exception as e:
@@ -354,14 +366,14 @@ class Runner:
                     else:
                         result_str = f"Error: Tool {func_name} not found"
 
-                    # Sonucu Event Olarak Fırlat
+                    # Yield Result as Event
                     yield AgentStreamEvent("tool_result", {
                         "name": func_name, 
                         "output": result_str,
                         "arguments": args
                     }, agent.name)
 
-                    # Sonucu HAFIZAYA EKLE
+                    # ADD Result to MEMORY
                     agent.memory.append({
                         "role": "tool",
                         "tool_call_id": call_id,
@@ -369,11 +381,11 @@ class Runner:
                         "content": result_str
                     })
 
-                # Döngü (step) başa döner, 'agent.memory' artık günceldir.
+                # Loop (step) restarts, 'agent.memory' is now up to date.
         
         finally:
-            # 2. CALLER ID TEMİZLİĞİ: İş bitti, yığından çık.
-            # Böylece bir üstteki fonksiyon (manager) tekrar "current_sender" olur.
+            # 2. CALLER ID CLEANUP: Job done, pop from stack.
+            # So the parent function (manager) becomes "current_sender" again.
             if self.agent_stack:
                 self.agent_stack.pop()
 
@@ -383,7 +395,7 @@ class Runner:
 
     async def run_stream_async(self, agent: Agent, task: str, chat_history: List[Dict] = None) -> AsyncGenerator[AgentStreamEvent, None]:
         """
-        Asenkron Çalıştırma Döngüsü (Async Support).
+        Asynchronous Execution Loop (Async Support).
         """
         
         # 0. MIDDLEWARE: Before Run
@@ -499,8 +511,8 @@ class Runner:
 
                     should_run = True
                     for mw in self.middlewares:
-                        # Async hook'u çağır
-                        # GÜNCELLEME: call_id eklendi
+                        # Call async hook
+                        # UPDATE: call_id added
                         res = await mw.before_tool_execution_async(agent, self, func_name, args, call_id)
                         
                         if not res:
@@ -535,7 +547,7 @@ class Runner:
                         }], agent.name)
 
                         try:
-                            # Tool ASYNC ise await et
+                            # If tool is ASYNC, await it
                             if inspect.iscoroutinefunction(tool_func):
                                 result = await tool_func(**args)
                             else:

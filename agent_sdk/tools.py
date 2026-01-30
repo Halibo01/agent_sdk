@@ -1,3 +1,19 @@
+"""
+Built-in Tools
+
+Standard tools provided by the SDK for common tasks like file I/O, web search, and code execution.
+
+Documentation: https://docs.agent-sdk-core.dev/modules/tools
+
+Key Tools:
+- **FileSystem**: `read_file`, `save_file`, `list_directory`
+- **Web**: `web_search`, `visit_webpage`, `wikipedia_search`
+- **Execution**: `run_python_code`, `execute_command`
+- **Utility**: `get_current_time`
+
+To create custom tools, use the `@tool_message` decorator.
+"""
+
 import json
 import os
 import subprocess

@@ -1,0 +1,57 @@
+# Agent SDK Core
+
+> Description: A lightweight, zero-dependency Python framework for building LLM Agents and Swarms.
+> Documentation: https://agent-sdk-core.dev/
+
+## Core Documentation
+- Introduction: https://agent-sdk-core.dev/docs/
+- Installation: https://agent-sdk-core.dev/docs/getting-started/installation
+- Quickstart: https://agent-sdk-core.dev/docs/getting-started/quickstart
+- Agents & Runners: https://agent-sdk-core.dev/docs/modules/agents
+- Tools: https://agent-sdk-core.dev/docs/modules/tools
+
+## Middleware System (Key Features)
+- Overview: https://agent-sdk-core.dev/docs/modules/middlewares/
+- RAG (Memory): https://agent-sdk-core.dev/docs/modules/middlewares/retrieval-augmented-generation-rag-middleware
+- Safety (Human in the Loop): https://agent-sdk-core.dev/docs/modules/middlewares/ai-safety-and-human-control-middleware
+- Logging: https://agent-sdk-core.dev/docs/modules/middlewares/agent-logging-and-context-injection-middleware
+
+## Advanced Topics
+- Swarms & Multi-Agent: https://agent-sdk-core.dev/docs/advanced/swarm
+
+## Usage Examples
+
+### 1. Basic Agent
+```python
+import os
+from agent_sdk import Runner, Agent, OpenAIClient
+
+client = OpenAIClient(api_key=os.getenv("OPENAI_API_KEY"))
+
+agent = Agent(
+    name="Helper",
+    instructions="You are a helpful assistant.",
+    model="gpt-4o"
+)
+
+runner = Runner(client)
+response = runner.run(agent, "Hello!")
+print(response)
+```
+
+### 2. RAG (Memory)
+```python
+from agent_sdk.middleware import SimpleRAG
+
+# Auto-manages chat history and context
+rag = SimpleRAG(db_path="memory.db")
+runner.use(rag)
+```
+
+### 3. Human Approval
+```python
+from agent_sdk.middleware import HumanInTheLoop
+
+runner.use(HumanInTheLoop()) 
+# Pauses execution for user approval before running tools
+```

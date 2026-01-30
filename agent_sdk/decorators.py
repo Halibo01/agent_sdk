@@ -1,3 +1,13 @@
+"""
+Decorators Module
+
+Helper decorators for defining and enhancing tools.
+- `@tool_message`: Sets a custom status message for tool execution.
+- `@approval_required`: Marks a tool as requiring human approval (middleware).
+
+Documentation: https://docs.agent-sdk-core.dev/modules/tools
+"""
+
 import functools
 import inspect
 

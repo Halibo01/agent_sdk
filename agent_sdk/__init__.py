@@ -1,3 +1,29 @@
+"""
+Agent SDK Core Library
+
+A powerful SDK for building and managing AI agents, swarms, and tools.
+
+Documentation: https://docs.agent-sdk-core.dev/
+Repository: https://github.com/Halibo01/agent_sdk
+
+Features:
+- **Universal Client Support:** OpenAI, Gemini, Anthropic, Ollama, DeepSeek, and more.
+- **Agent Swarms:** Collaborative multi-agent systems.
+- **Middleware:** RAG, Human-in-the-Loop, Logging, Reflection.
+- **Hybrid Async/Sync:** Seamless support for both execution modes.
+- **Advanced Tooling:** Sandboxed code execution, web search, and file operations.
+
+Installation:
+    pip install agent-sdk-core
+
+Basic Usage:
+    >>> from agent_sdk import Agent, Runner, OpenAIClient
+    >>> client = OpenAIClient(api_key="sk-...")
+    >>> runner = Runner(client)
+    >>> agent = Agent(name="Bot", instructions="You are helpful.")
+    >>> runner.run_stream(agent, "Hello!")
+"""
+
 # Clients
 from .clients.base import BaseClient
 from .clients.openrouter import OpenRouterClient
@@ -33,7 +59,7 @@ from .tools import (
     save_file
 )
 
-__version__ = "0.1.5"
+__version__ = "0.1.6"
 
 
 __all__ = [

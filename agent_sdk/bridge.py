@@ -1,3 +1,13 @@
+"""
+Bridge Module
+
+The `AgentBridge` wraps an `Agent` as a callable tool, allowing other agents or external 
+systems to invoke it with a natural language task. It handles the message passing and 
+execution via a `Runner`.
+
+Documentation: https://docs.agent-sdk-core.dev/advanced/swarm
+"""
+
 from typing import Callable, Optional
 from .agent import Agent
 from .runner import Runner 
@@ -10,7 +20,7 @@ class AgentBridge:
         agent: Agent, 
         runner: Runner, 
         on_event: Optional[Callable[[AgentStreamEvent], None]] = None,
-        handoff_template: Optional[str] = None  # <--- YENİ PARAMETRE
+        handoff_template: Optional[str] = None  # <--- NEW PARAMETER
     ):
         """
         Args:
@@ -33,7 +43,7 @@ class AgentBridge:
         if self.handoff_template:
             selected_template = self.handoff_template
         else:
-            # Varsayılan (Default) Şablon
+            # Default Template
             selected_template = f"{self.agent.name} is stepping in for task: {{task}}..."
 
         # 2. Provide the selected template to the decorator

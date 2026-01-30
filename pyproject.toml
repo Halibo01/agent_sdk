@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-sdk-core"
-version = "0.1.5"
-description = "A hybrid (sync/async) AI Agent Framework with middleware and swarm support."
+version = "0.1.6"
+description = "A lightweight, zero-dependency focused AI Agent Framework for Python."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
@@ -17,6 +17,11 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
@@ -24,9 +29,7 @@ dependencies = [
     "httpx>=0.24",
     "colorama",
     "python-dotenv",
-    "markdownify",
-    "mkdocs>=1.4.0",
-    "mkdocs-material>=9.0.0"
+    "markdownify"
 ]
 
 [project.optional-dependencies]
@@ -36,6 +39,18 @@ gemini = ["google-generativeai>=0.4.0"]
 ollama = ["ollama"]
 rag = ["chromadb>=0.4.0"]
 tools = ["duckduckgo-search>=5.0.0", "wikipedia"]
+
+docs = [
+    "mkdocs>=1.4.0",
+    "mkdocs-material>=9.0.0"
+]
+
+dev = [
+    "pytest",
+    "build",
+    "agent-sdk-core[docs,all]"
+]
+
 all = [
     "openai>=1.12.0",
     "anthropic>=0.18.0",
@@ -54,6 +69,7 @@ Issues = "https://github.com/Halibo01/agent_sdk/issues"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["agent_sdk*"]
+exclude = ["tests*", "docs*", "examples*", "site*", ".github*"]
 namespaces = false
 
 [tool.pytest.ini_options]

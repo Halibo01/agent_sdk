@@ -1,3 +1,12 @@
+"""
+Swarm Module
+
+Facilitates multi-agent collaboration by creating a mesh network of agents.
+The `AgentSwarm` allows agents to discover and call each other as tools.
+
+Documentation: https://docs.agent-sdk-core.dev/advanced/swarm
+"""
+
 from typing import List, Dict, Callable, Optional
 from .agent import Agent
 from .runner import Runner
@@ -43,8 +52,8 @@ class AgentSwarm:
             bridge = AgentBridge(
                 agent=agent, 
                 runner=self.runner, 
-                on_event=self.event_handler,    # <--- Tünel Açılıyor
-                handoff_template=handoff_template # <--- Özel Mesaj Şablonu
+                on_event=self.event_handler,    # <--- Event Tunneling
+                handoff_template=handoff_template # <--- Custom Message Template
             )
             
             # Produce the tool (get the function)

@@ -12,26 +12,26 @@ class SQLiteLogger(Middleware):
         self._init_db()
 
     def _init_db(self):
-        """Veritabanı ve tabloyu başlatır."""
+        """Initializes the database and table."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        # Basit ve esnek bir log tablosu
+        # Simple and flexible log table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS activity_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TEXT,
                 agent_name TEXT,
                 event_type TEXT, -- 'run_start', 'tool_use', 'message', 'error'
-                summary TEXT,    -- Kısa özet veya mesaj içeriği
-                details JSON     -- Tüm parametreler ve detaylar
+                summary TEXT,    -- Short summary or message content
+                details JSON     -- All parameters and details
             )
         """)
         conn.commit()
         conn.close()
 
     def _insert_log(self, agent_name: str, event_type: str, summary: str, details: dict):
-        """Senkron kayıt ekleme"""
+        """Synchronous log insertion"""
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -50,15 +50,15 @@ class SQLiteLogger(Middleware):
             conn.commit()
             conn.close()
         except Exception as e:
-            print(f"[SQLiteLogger] Hata: {e}")
+            print(f"[SQLiteLogger] Error: {e}")
 
     # --- SYNCHRONOUS HOOKS ---
 
     def before_run(self, agent, runner):
-        # Ajan çalışmaya başladığında
-        # Son kullanıcı mesajını bul (genelde son eklenen user mesajıdır)
+        # When agent starts running
+        # Find last user message (usually the last added one)
         last_msg = agent.memory[-1] if agent.memory else {}
-        task_preview = last_msg.get("content", "")[:100] if last_msg.get("role") == "user" else "Devam ediyor..."
+        task_preview = last_msg.get("content", "")[:100] if last_msg.get("role") == "user" else "Continuing..."
         
         self._insert_log(
             agent_name=agent.name,
@@ -77,7 +77,7 @@ class SQLiteLogger(Middleware):
         return True
 
     def after_run(self, agent, runner):
-        # Ajanın son cevabını kaydet
+        # Save agent's last response
         last_msg = agent.memory[-1] if agent.memory else {}
         content = last_msg.get("content") or ""
         
@@ -91,9 +91,9 @@ class SQLiteLogger(Middleware):
     # --- ASYNCHRONOUS HOOKS ---
 
     async def before_run_async(self, agent, runner):
-        # Async modda thread'e atarak kaydet
+        # Save in thread for async mode
         last_msg = agent.memory[-1] if agent.memory else {}
-        task_preview = last_msg.get("content", "")[:100] if last_msg.get("role") == "user" else "Devam ediyor..."
+        task_preview = last_msg.get("content", "")[:100] if last_msg.get("role") == "user" else "Continuing..."
         
         await asyncio.to_thread(
             self._insert_log, 

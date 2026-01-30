@@ -1,33 +1,49 @@
 site_name: Agent SDK Core
-site_url: https://docs.agent-sdk-core.dev
+site_url: https://agent-sdk-core.dev/
+site_description: "A lightweight, zero-dependency Python framework for building LLM Agents and Swarms."
 repo_url: https://github.com/Halibo01/agent_sdk
 repo_name: Halibo01/agent_sdk
 
+plugins:
+  - tags
+  - search
+  - se
 theme:
   name: material
-  logo: material/robot  # <-- Logo değişti (Hazır ikon)
-  favicon: material/robot # <-- Favicon değişti
+  logo: material/robot
+  favicon: material/robot
   palette: 
     scheme: slate
     primary: indigo
   features:
     - content.code.copy
     - navigation.expand
+    - navigation.tabs
+    - navigation.top
+    - navigation.tracking
 
 nav:
   - Home: index.md
-  - Getting Started:
-      - Installation: getting-started/installation.md
-      - Quick Start: getting-started/quickstart.md
-  
-  - Core Modules:
-      - Universal Clients: modules/clients.md
-      - Agents & Runners: modules/agents.md
-      - Middleware System: modules/middleware.md
-      - Tools & Actions: modules/tools.md
+  - Docs: 
+    - Introduction: docs/index.md
+    - Getting Started:
+        - Installation: getting-started/installation.md
+        - Quick Start: getting-started/quickstart.md
+    
+    - Core Modules:
+        - Universal Clients: docs/modules/clients.md
+        - Agents & Runners: docs/modules/agents.md
+        - Middleware System:
+            - Overview: docs/modules/middlewares/index.md
+            - RAG & Knowledge: docs/modules/middlewares/retrieval-augmented-generation-rag-middleware.md
+            - Memory Management: docs/modules/middlewares/memory-management-and-summarization-middleware.md
+            - Safety & Control: docs/modules/middlewares/ai-safety-and-human-control-middleware.md
+            - Logging & Context: docs/modules/middlewares/agent-logging-and-context-injection-middleware.md
+            - Custom Middleware: docs/modules/middlewares/building-custom-middleware-extensions.md
+        - Tools & Actions: docs/modules/tools.md
 
-  - Advanced Topics:
-      - Swarm & Handoffs: advanced/swarm.md
-      - RAG Integration: advanced/rag.md
-  
-  - API Reference: api-reference.md
+    - Advanced Topics:
+        - Swarm & Handoffs: advanced/swarm.md
+        - RAG Integration: advanced/rag.md
+    
+    - API Reference: api-reference.md

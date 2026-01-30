@@ -1,24 +1,68 @@
-# Welcome to Agent SDK
+---
+title: Introduction | Agent SDK
+description: Welcome to the Agent SDK documentation. Learn how to build, deploy, and manage intelligent AI agents and swarms using Python.
+keywords: 
+    - agent sdk
+    - python ai framework
+    - llm agents
+    - multi-agent systems
+    - introduction
+---
 
-**Agent SDK** is a **Streaming-First**, **User-Friendly**, and **modular** AI Agent Framework built for Python.
+# Introduction to Agent SDK
 
-It is designed to deliver **seamless real-time user experiences** with built-in streaming support, while offering an incredibly intuitive API for developers. Unlike complex alternatives, Agent SDK prioritizes simplicity without sacrificing power.
+Welcome to the **Agent SDK**, a lightweight, zero-dependency Python framework designed for building intelligent LLM Agents and Multi-Agent Swarms.
 
-## 🌟 Key Features
+Whether you are building a simple chatbot, a complex research assistant, or an autonomous swarm of agents working together, Agent SDK provides the primitives you need without the bloat.
 
-*   **Universal Client Support:** Supports OpenAI, Google Gemini, Anthropic Claude, xAI Grok, DeepSeek, Qwen, Zhipu AI, and local models (Ollama).
-*   **Hybrid Architecture:** Supports both Synchronous (`run_stream`) and Asynchronous (`run_stream_async`) execution within the same codebase.
-*   **Swarm Intelligence:** Enables agents to recognize each other, delegate tasks, and collaborate (`AgentBridge` and `AgentSwarm`).
-*   **Middleware System:** Plug-and-play modules that modify agent behavior:
-    *   **RAG (Retrieval-Augmented Generation):** Long-term memory using ChromaDB or SQLite FTS5.
-    *   **Human-in-the-Loop:** User approval for critical actions.
-    *   **Self-Reflection:** Agents can review and correct their own outputs.
-    *   **Logging:** Detailed activity logging.
-*   **Advanced Tooling:** 
-    *   **Sandbox:** Secure execution of Python code (Docker or Isolated Local Process).
-    *   File system, Web search, and Shell command tools.
+## Why Agent SDK?
 
-## Next Steps
+*   **Lightweight & Fast**: No heavy dependencies. Pure Python.
+*   **Model Agnostic**: Works with OpenAI, Gemini, Anthropic, Ollama, and more.
+*   **Middleware First**: Easily add capabilities like Memory (RAG), Safety, and Logging via a robust middleware system.
+*   **Swarm Ready**: Built-in support for multi-agent collaboration and handoffs (`AgentSwarm`).
 
-*   [Installation](getting-started/installation.md)
-*   [Quick Start](getting-started/quickstart.md)
+## Core Concepts
+
+*   **[Agents](./modules/agents.md)**: The brain of your application. An Agent wraps an LLM with specific instructions and tools.
+*   **[Runners](./modules/agents.md)**: The runtime environment that executes the Agent's reasoning loop.
+*   **[Tools](./modules/tools.md)**: Functions that Agents can call to interact with the real world (APIs, File System, etc.).
+*   **[Middleware](./modules/middlewares/index.md)**: Plugins that intercept and modify the Agent's behavior (e.g., adding long-term memory).
+
+## Getting Started
+
+Ready to build?
+
+1.  **[Installation](./getting-started/installation.md)**: Set up your environment.
+2.  **[Quick Start](./getting-started/quickstart.md)**: Build your first agent in 5 minutes.
+3.  **[Examples](https://github.com/Halibo01/agent_sdk/tree/main/examples)**: Check out real-world usage patterns.
+
+## Community
+
+*   [GitHub Repository](https://github.com/Halibo01/agent_sdk)
+*   [Report a Bug](https://github.com/Halibo01/agent_sdk/issues)
+
+---
+<div class="grid cards" markdown>
+
+-   :material-clock-fast: **Quick Start**
+    ---
+    Get up and running with a simple agent in seconds.
+    [:arrow_right: Go to Quick Start](./getting-started/quickstart.md)
+
+-   :material-robot: **Agents & Tools**
+    ---
+    Dive deep into creating powerful agents with custom tools.
+    [:arrow_right: Learn about Agents](./modules/agents.md)
+
+-   :material-layers-triple: **Middleware**
+    ---
+    Enhance your agents with RAG, Safety checks, and Logging.
+    [:arrow_right: Explore Middleware](./modules/middlewares/index.md)
+
+-   :material-hive: **Swarm Architecture**
+    ---
+    Connect multiple agents into a collaborative mesh network.
+    [:arrow_right: Build a Swarm](./advanced/swarm.md)
+
+</div>

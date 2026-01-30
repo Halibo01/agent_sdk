@@ -4,7 +4,7 @@ from ..events import StreamEvent
 
 class BaseClient(ABC):
     """
-    Tüm LLM sağlayıcılarının uyması gereken ortak arayüz.
+    Common interface that all LLM providers must adhere to.
     """
     @abstractmethod
     def chat(self, model: str, messages: List[Dict], **kwargs) -> Dict[str, Any]: pass

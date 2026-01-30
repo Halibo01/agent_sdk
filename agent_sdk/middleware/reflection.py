@@ -8,9 +8,9 @@ class SelfReflection(Middleware):
 
     def _analyze_response(self, agent: Agent, runner, last_message: str):
         """
-        Ajanın cevabını analiz eder.
+        Analyzes the agent's response.
         """
-        # Kullanıcının son isteği
+        # Get the user's last request
         user_req = "Unknown"
         for msg in reversed(agent.memory[:-1]):
             if msg["role"] == "user":
@@ -31,16 +31,16 @@ class SelfReflection(Middleware):
         ]
 
         try:
-            # Sync analiz
+            # Sync analysis
             response = runner.client.chat(model=self.model, messages=prompt)
             return response["content"]
         except Exception as e:
-            print(f"[Reflection] Hata: {e}")
+            print(f"[Reflection] Error: {e}")
             return "OK"
 
     async def _analyze_response_async(self, agent: Agent, runner, last_message: str):
         """
-        Async analiz.
+        Async analysis.
         """
         user_req = "Unknown"
         for msg in reversed(agent.memory[:-1]):
@@ -57,11 +57,11 @@ class SelfReflection(Middleware):
             response = await runner.client.chat_async(model=self.model, messages=prompt)
             return response["content"]
         except Exception as e:
-            print(f"[Reflection] Hata: {e}")
+            print(f"[Reflection] Error: {e}")
             return "OK"
 
     def after_run(self, agent: Agent, runner):
-        # Sadece Assistant mesajlarını kontrol et
+        # Only check Assistant messages
         if not agent.memory: return
         last_msg = agent.memory[-1] 
         
@@ -72,16 +72,16 @@ class SelfReflection(Middleware):
         
         if evaluation.startswith("CRITICISM:"):
             feedback = evaluation.replace("CRITICISM:", "").strip()
-            print(f"\n{Agent.COLOR_Reviewer if hasattr(Agent, 'COLOR_Reviewer') else ''}[Self-Reflection] Müdahale: {feedback}")
+            print(f"\n{Agent.COLOR_Reviewer if hasattr(Agent, 'COLOR_Reviewer') else ''}[Self-Reflection] Intervention: {feedback}")
             
-            # Hafızaya eleştiriyi ekle
+            # Add criticism to memory
             agent.memory.append({
-                "role": "user", # User rolüyle ekliyoruz ki ajan dikkate alsın
+                "role": "user", # Add as user role so the agent pays attention
                 "content": f"[SYSTEM FEEDBACK]: Your previous answer has issues: {feedback}. Please fix it and respond again."
             })
-            # Not: Burada runner'ı tekrar tetiklemek için bir mekanizma yok. 
-            # Ancak bir sonraki turda ajan bunu görecek. 
-            # Otomatik loop için runner yapısının değişmesi gerekir.
+            # Note: There is no mechanism here to re-trigger the runner.
+            # However, the agent will see this in the next turn.
+            # To have an automatic loop, the runner structure needs to change.
 
     async def after_run_async(self, agent: Agent, runner):
         if not agent.memory: return
@@ -94,7 +94,7 @@ class SelfReflection(Middleware):
         
         if evaluation.startswith("CRITICISM:"):
             feedback = evaluation.replace("CRITICISM:", "").strip()
-            print(f"\n[Self-Reflection] Müdahale: {feedback}")
+            print(f"\n[Self-Reflection] Intervention: {feedback}")
             
             agent.memory.append({
                 "role": "user",

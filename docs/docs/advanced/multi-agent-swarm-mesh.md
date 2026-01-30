@@ -1,3 +1,16 @@
+---
+title: Python ile AI Swarm (Sürü) Mimarisi Kurulumu
+description: How to build autonomous swarm systems where multiple AI agents (multi-agents) communicate with each other using the Agent SDK?
+keywords: 
+    - multi-agent systems
+    - python swarm
+    - otonom ajanlar
+    - ai swarm
+    - mesh system
+    - mesh-agents
+    - agent systems
+---
+
 # Swarm & Handoffs
 
 Agent SDK supports multi-agent collaboration, allowing specialized agents to work together.

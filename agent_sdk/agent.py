@@ -1,4 +1,12 @@
-# agent.py
+"""
+Agent Module
+
+Defines the `Agent` class, which holds the configuration and state (identity, tools, instructions) 
+for an AI assistant. The Agent is passive and is executed by a `Runner`.
+
+Documentation: https://docs.agent-sdk-core.dev/modules/agents
+"""
+
 from typing import Optional, Dict, Callable, Any
 
 class Agent:
