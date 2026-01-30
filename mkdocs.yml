@@ -9,6 +9,12 @@ plugins:
   - search
   - minify:
       minify_html: true
+  - social:
+      cards_layout_options:
+        background_color: "#2f3136"
+  - git-revision-date-localized:
+      type: timeago
+      enable_creation_date: true
 theme:
   name: material
   logo: material/robot

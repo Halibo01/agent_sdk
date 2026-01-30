@@ -42,7 +42,10 @@ tools = ["duckduckgo-search>=5.0.0", "wikipedia"]
 
 docs = [
     "mkdocs>=1.4.0",
-    "mkdocs-material>=9.0.0"
+    "mkdocs-material>=9.0.0",
+    "mkdocs-minify-plugin>=0.7.0",
+    "mkdocs-git-revision-date-localized-plugin>=1.2.0",
+    "mkdocs-redirects>=1.2.0"
 ]
 
 dev = [
