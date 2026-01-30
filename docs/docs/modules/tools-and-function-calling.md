@@ -1,3 +1,16 @@
+---
+title: Tools & Function Calling | Agent SDK
+description: Empower your agents with Tools. Learn how to create custom functions, use file system tools, and enable agents to interact with the world.
+keywords: 
+    - function calling
+    - agent tools
+    - custom tools
+    - python decorators
+    - tool execution
+    - file system tools
+    - web search tool
+---
+
 # Tools & Actions
 
 Tools are Python functions that agents can execute. Agent SDK makes it easy to turn any function into a tool using decorators.

@@ -1,3 +1,15 @@
+---
+title: Quick Start Tutorial | Agent SDK
+description: Build your first AI agent in under 5 minutes. A simple 'Hello World' tutorial for the Agent SDK using OpenAI or Gemini.
+keywords: 
+    - quick start
+    - tutorial
+    - hello world
+    - first agent
+    - python ai tutorial
+    - beginner guide
+---
+
 # Quick Start
 
 This guide will get you up and running with a simple AI agent in minutes.

@@ -1,3 +1,15 @@
+---
+title: Advanced RAG Integration | Agent SDK
+description: Deep dive into Retrieval-Augmented Generation strategies. Compare SimpleRAG vs. ChromaRAG and learn configuration best practices.
+keywords: 
+    - advanced rag
+    - vector search strategies
+    - rag configuration
+    - knowledge base integration
+    - sqlite vs chroma
+    - semantic search
+---
+
 # RAG Integration
 
 Retrieval-Augmented Generation (RAG) allows agents to remember past conversations or access external knowledge bases.

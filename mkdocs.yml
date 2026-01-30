@@ -53,8 +53,8 @@ nav:
         - Quick Start: getting-started/quickstart.md
     
     - Core Modules:
-        - Universal Clients: docs/modules/clients.md
-        - Agents & Runners: docs/modules/agents.md
+        - Universal Clients: docs/modules/universal-llm-clients.md
+        - Agents & Runners: docs/modules/agents-and-runners-core-concepts.md
         - Middleware System:
             - Overview: docs/modules/middlewares/index.md
             - RAG & Knowledge: docs/modules/middlewares/retrieval-augmented-generation-rag-middleware.md
@@ -62,10 +62,10 @@ nav:
             - Safety & Control: docs/modules/middlewares/ai-safety-and-human-control-middleware.md
             - Logging & Context: docs/modules/middlewares/agent-logging-and-context-injection-middleware.md
             - Custom Middleware: docs/modules/middlewares/building-custom-middleware-extensions.md
-        - Tools & Actions: docs/modules/tools.md
+        - Tools & Actions: docs/modules/tools-and-function-calling.md
 
     - Advanced Topics:
-        - Swarm & Handoffs: advanced/swarm.md
-        - RAG Integration: advanced/rag.md
+        - Swarm & Handoffs: docs/advanced/multi-agent-swarm-mesh.md
+        - RAG Integration: docs/advanced/retrieval-augmented-generation-rag.md
     
-    - API Reference: api-reference.md
+    - API Reference: docs/api-reference.md

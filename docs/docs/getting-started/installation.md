@@ -3,6 +3,18 @@ title: Agent SDK Core Kurulum Rehberi (Pip & Docker)
 description: How do you install the Agent SDK Core library for your Python projects?
 ---
 
+---
+title: Installation Guide | Agent SDK
+description: Step-by-step guide to installing the Agent SDK. Learn how to set up your environment, install dependencies, and configure API keys.
+keywords: 
+    - installation
+    - python setup
+    - pip install
+    - agent sdk installation
+    - environment variables
+    - api keys
+---
+
 # Installation
 
 ## Prerequisites

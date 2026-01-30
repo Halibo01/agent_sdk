@@ -1,3 +1,14 @@
+---
+title: API Reference | Agent SDK
+description: Complete API reference for Agent SDK. Documentation for Agents, Runners, Clients, and Middleware classes.
+keywords: 
+    - api reference
+    - python api docs
+    - agent sdk classes
+    - sdk documentation
+    - module reference
+---
+
 # API Reference
 
 ## Agent

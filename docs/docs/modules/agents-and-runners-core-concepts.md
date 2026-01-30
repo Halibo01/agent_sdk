@@ -1,3 +1,16 @@
+---
+title: Agents & Runners | Agent SDK
+description: Understand the core concepts of Agents and Runners. Learn how to define agent instructions, manage state, and execute reasoning loops.
+keywords: 
+    - ai agent
+    - runner
+    - reasoning loop
+    - agent definition
+    - python agent
+    - streaming response
+    - agent state
+---
+
 # Agents & Runners
 
 The core of the SDK revolves around the `Agent` configuration and the `Runner` execution engine.

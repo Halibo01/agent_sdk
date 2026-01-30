@@ -1,3 +1,16 @@
+---
+title: Universal LLM Clients | Agent SDK
+description: Connect to OpenAI, Google Gemini, Anthropic Claude, Ollama, and more using a unified Client API. Switch models without changing code.
+keywords: 
+    - llm client
+    - openai client
+    - gemini client
+    - anthropic client
+    - ollama integration
+    - model agnostic
+    - python llm wrapper
+---
+
 # Universal Clients
 
 Agent SDK provides a unified interface for various LLM providers. You can switch between providers by simply changing the client class.
