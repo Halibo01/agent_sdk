@@ -67,12 +67,12 @@ class SQLiteLogger(Middleware):
             details={"memory_size": len(agent.memory)}
         )
 
-    def before_tool_execution(self, agent, runner, tool_name: str, tool_args: dict) -> bool:
+    def before_tool_execution(self, agent, runner, tool_name: str, tool_args: dict, tool_call_id: Optional[str] = None) -> bool:
         self._insert_log(
             agent_name=agent.name,
             event_type="tool_use",
             summary=f"Calling {tool_name}",
-            details={"tool": tool_name, "args": tool_args}
+            details={"tool": tool_name, "args": tool_args, "tool_call_id": tool_call_id}
         )
         return True
 
@@ -100,10 +100,10 @@ class SQLiteLogger(Middleware):
             agent.name, "run_start", f"Task started: {task_preview}", {"memory_size": len(agent.memory)}
         )
 
-    async def before_tool_execution_async(self, agent, runner, tool_name: str, tool_args: dict) -> bool:
+    async def before_tool_execution_async(self, agent, runner, tool_name: str, tool_args: dict, tool_call_id: Optional[str] = None) -> bool:
         await asyncio.to_thread(
             self._insert_log,
-            agent.name, "tool_use", f"Calling {tool_name}", {"tool": tool_name, "args": tool_args}
+            agent.name, "tool_use", f"Calling {tool_name}", {"tool": tool_name, "args": tool_args, "tool_call_id": tool_call_id}
         )
         return True
 
