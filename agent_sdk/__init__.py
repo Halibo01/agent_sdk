@@ -9,7 +9,7 @@ Repository: https://github.com/Halibo01/agent_sdk
 Features:
 - **Universal Client Support:** OpenAI, Gemini, Anthropic, Ollama, DeepSeek, and more.
 - **Agent Swarms:** Collaborative multi-agent systems.
-- **Middleware:** RAG, Human-in-the-Loop, Logging, Reflection.
+- **Middleware:** RAG (Simple, Chroma, Google), Human-in-the-Loop, Logging, Reflection.
 - **Hybrid Async/Sync:** Seamless support for both execution modes.
 - **Advanced Tooling:** Sandboxed code execution, web search, and file operations.
 
@@ -59,7 +59,7 @@ from .tools import (
     save_file
 )
 
-__version__ = "0.1.6"
+__version__ = "0.2.0"
 
 
 __all__ = [

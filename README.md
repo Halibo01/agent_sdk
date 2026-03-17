@@ -1,4 +1,4 @@
-# Agent SDK 🤖
+# Agent SDK 🤖 (v0.2.0)
 
 **Agent SDK** is a **Streaming-First**, **User-Friendly**, and **modular** AI Agent Framework built for Python.
 
@@ -9,16 +9,19 @@ Inspired by libraries like LangChain and AutoGen, it provides a lightweight, con
 ## 🌟 Features
 
 *   **Universal Client Support:** Supports OpenAI, Google Gemini, Anthropic Claude, xAI Grok, DeepSeek, Qwen, Zhipu AI, and local models (Ollama).
+*   **Multimodal & STT Native Clients:** Direct Speech-to-Text (`speech_to_text()`) and Image Generation (`generate_image()`) directly within the Client layer.
 *   **Hybrid Architecture:** Supports both Synchronous (`run_stream`) and Asynchronous (`run_stream_async`) execution within the same codebase.
 *   **Swarm Intelligence:** Enables agents to recognize each other, delegate tasks, and collaborate (`AgentBridge`).
 *   **Middleware System:** Plug-and-play modules that modify agent behavior:
-    *   🧠 **RAG (Retrieval-Augmented Generation):** Long-term memory using ChromaDB or SQLite FTS5.
+    *   🧠 **Multimodal RAG:** Long-term memory using ChromaDB, completely decoupled to allow custom Embedding functions (like Google `gemini-embedding-2-preview` or Facebook `ImageBind` for Audio/Video/Image embeddings).
     *   🛡️ **Human-in-the-Loop:** User approval for critical actions.
     *   🤔 **Self-Reflection:** Agents can review and correct their own outputs.
     *   📝 **Logging:** Detailed activity logging via JSONL or SQLite.
     *   📚 **Summarization:** Automatically compresses conversation history to maintain context limits.
     *   💉 **Context Injection:** Inject runtime environment variables or static data into agent memory.
 *   **Advanced Tooling:** 
+    *   **RLM (Recursive Language Model) Reader:** `recursive_document_analysis` tool for analyzing massively large documents via rolling state without blowing up context windows (The ultimate alternative to RAG).
+    *   **In-Memory Document Search:** Fast semantic search inside massive PDFs using on-the-fly local ChromaDB.
     *   **Sandbox:** Secure execution of Python code (Docker or Isolated Local Process).
     *   File system, Web search, and Shell command tools.
 

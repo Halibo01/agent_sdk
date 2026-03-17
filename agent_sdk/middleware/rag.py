@@ -453,16 +453,18 @@ class ChromaRAG(Middleware):
     Note: This class does NOT manage the 'sessions' table or titles; that is handled by SimpleRAG.
     """
 
-    def __init__(self, collection_name: str = "agent_memory", persist_dir: str = "./chroma_db"):
+    def __init__(self, collection_name: str = "agent_memory", persist_dir: str = "./chroma_db", embedding_function=None):
         """
         Initializes the ChromaRAG middleware.
 
         Args:
             collection_name (str): Name of the ChromaDB collection. Defaults to "agent_memory".
             persist_dir (str): Directory path for storing ChromaDB data. Defaults to "./chroma_db".
+            embedding_function: Optional custom embedding function (e.g., ImageBindEmbeddingFunction or GeminiMultimodalEmbedding).
         """
         self.collection_name = collection_name
         self.persist_dir = persist_dir
+        self.embedding_function = embedding_function
         self.collection = None
         self._init_db()
 
@@ -472,8 +474,13 @@ class ChromaRAG(Middleware):
             import chromadb
             # Create Persistent Client
             self.client = chromadb.PersistentClient(path=self.persist_dir)
-            self.collection = self.client.get_or_create_collection(name=self.collection_name)
+            self.collection = self.client.get_or_create_collection(
+                name=self.collection_name,
+                embedding_function=self.embedding_function
+            )
             print(f"[ChromaRAG] ChromaDB initialized at '{self.persist_dir}'. Collection: '{self.collection_name}'")
+            if self.embedding_function:
+                print(f"[ChromaRAG] Custom embedding function loaded: {self.embedding_function.__class__.__name__}")
         except ImportError:
             print("[ChromaRAG] Error: 'chromadb' not found. Please install via 'pip install chromadb' or use SimpleRAG.")
         except Exception as e:
@@ -482,9 +489,11 @@ class ChromaRAG(Middleware):
     def _add_memory(self, content: str, metadata: dict, user_id: str = None):
         """
         Saves a text entry to ChromaDB with embeddings and metadata.
+        If a custom embedding_function is used (like multimodal), 'content' can also be a file path.
         """
         if not self.collection: return
-        if not content or len(content) < 10: return
+        # Removing the length check because if content is a file path (e.g. 'a.mp4') it might be less than 10 chars.
+        if not content: return
 
         try:
             import uuid

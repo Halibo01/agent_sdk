@@ -464,3 +464,290 @@ def read_uploaded_file(filename: str) -> str:
             return f.read()
     except Exception as e:
         return f"Error reading file: {e}"
+
+@tool_message("Analyzing media file: '{file_path}'")
+def analyze_media(file_path: str, question: str = "Describe what you see in this media in detail.") -> str:
+    """
+    Allows the agent to 'see' and analyze an image or video file.
+    Args:
+        file_path (str): The local path to the image (.jpg, .png) or video (.mp4).
+        question (str): What to ask the vision model about this media.
+    Returns:
+        str: The textual description or answer from the Vision model.
+    """
+    import os
+    import base64
+    from agent_sdk.clients.gemini import GeminiClient
+    
+    if not os.path.exists(file_path):
+        return f"Error: File '{file_path}' not found."
+        
+    try:
+        # We use GeminiClient internally as a 'Vision Tool'
+        client = GeminiClient(api_key=os.environ.get("GEMINI_API_KEY"))
+        
+        ext = os.path.splitext(file_path)[1].lower()
+        mime_type = "video/mp4" if ext in [".mp4", ".mov", ".avi"] else "image/jpeg"
+        
+        with open(file_path, "rb") as f:
+            media_bytes = f.read()
+            
+        b64_data = base64.b64encode(media_bytes).decode('utf-8')
+        data_uri = f"data:{mime_type};base64,{b64_data}"
+        
+        messages = [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": question},
+                {"type": "image_url", "image_url": {"url": data_uri}}
+            ]
+        }]
+        
+        response = client.chat(model="gemini-1.5-pro", messages=messages)
+        return response.get("content", "Failed to get a response from the vision model.")
+        
+    except Exception as e:
+        return f"Error analyzing media: {e}"
+
+@tool_message("Searching inside document '{file_path}' for '{query}'...")
+def search_inside_document(file_path: str, query: str, top_k: int = 3) -> str:
+    """
+    Reads a large document (TXT, MD, or PDF), splits it into chunks, 
+    and uses embeddings (ChromaDB) to find the most relevant sections to the query.
+    This prevents overwhelming the agent's context window with a massive file.
+    
+    Args:
+        file_path (str): The local path to the document.
+        query (str): What information the agent is looking for inside the document.
+        top_k (int): How many relevant chunks to return (default is 3).
+        
+    Returns:
+        str: The most relevant text chunks found in the document.
+    """
+    import os
+    
+    if not os.path.exists(file_path):
+        return f"Error: File '{file_path}' not found."
+
+    text_content = ""
+    try:
+        # 1. Read the file
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext == ".pdf":
+            try:
+                import PyPDF2
+                with open(file_path, "rb") as f:
+                    reader = PyPDF2.PdfReader(f)
+                    for page in reader.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text_content += page_text + "\n"
+            except ImportError:
+                return "Error: PyPDF2 is not installed. Cannot read PDF files."
+        else:
+            # Assume text based file (.txt, .md, .csv, etc.)
+            with open(file_path, "r", encoding="utf-8") as f:
+                text_content = f.read()
+                
+        if not text_content.strip():
+            return "Error: The document is empty or could not be read."
+
+        # 2. Split into chunks (simple paragraph/character splitting)
+        # We'll split by double newline first, then by a fixed size if still too large.
+        raw_chunks = [c.strip() for c in text_content.split("\n\n") if len(c.strip()) > 20]
+        
+        # If the document is small enough, just return it entirely instead of embedding
+        if len(text_content) < 4000:
+            return f"--- DOCUMENT CONTENT ---\n{text_content}\n--- END ---"
+
+        # 3. Create an in-memory ChromaDB to search
+        try:
+            import chromadb
+            # In-memory client, ephemeral. Disappears when function ends.
+            chroma_client = chromadb.Client()
+            collection_name = f"doc_search_{os.path.basename(file_path).replace('.', '_')}"
+            
+            # Delete if exists (rare case but safe)
+            try:
+                chroma_client.delete_collection(collection_name)
+            except:
+                pass
+                
+            collection = chroma_client.create_collection(name=collection_name)
+            
+            # Add chunks to collection
+            ids = [f"chunk_{i}" for i in range(len(raw_chunks))]
+            collection.add(
+                documents=raw_chunks,
+                ids=ids
+            )
+            
+            # 4. Search
+            results = collection.query(
+                query_texts=[query],
+                n_results=min(top_k, len(raw_chunks))
+            )
+            
+            # 5. Format output
+            found_docs = results["documents"][0]
+            output = f"Top {len(found_docs)} results found in '{os.path.basename(file_path)}' for query '{query}':\n\n"
+            for i, doc in enumerate(found_docs):
+                output += f"--- Result {i+1} ---\n{doc}\n\n"
+                
+            return output
+            
+        except ImportError:
+            return "Error: chromadb is not installed. Semantic search failed."
+            
+    except Exception as e:
+        return f"Error processing document: {e}"
+
+@tool_message("Recursively analyzing massive document '{file_path}'...")
+def recursive_document_analysis(file_path: str, question: str) -> str:
+    """
+    A non-RAG alternative for reading extremely large documents.
+    It reads the document chunk by chunk, maintaining a 'rolling summary'
+    of the information relevant to the user's question, without exploding the context window.
+    
+    Args:
+        file_path (str): Path to the large document (.txt, .md).
+        question (str): The specific question or summarization goal.
+        
+    Returns:
+        str: The final synthesized answer after reading the entire document.
+    """
+    import os
+    from agent_sdk.clients.openrouter import OpenRouterClient
+    from agent_sdk.clients.gemini import GeminiClient
+    
+    if not os.path.exists(file_path):
+        return f"Error: File '{file_path}' not found."
+        
+    # We will use OpenRouter or Gemini dynamically
+    try:
+        if os.environ.get("OPENROUTER_API_KEY"):
+            client = OpenRouterClient(api_key=os.environ.get("OPENROUTER_API_KEY"))
+            model_name = "openai/gpt-4o-mini" # Very cheap and reliable
+        elif os.environ.get("GEMINI_API_KEY"):
+            client = GeminiClient(api_key=os.environ.get("GEMINI_API_KEY"))
+            model_name = "gemini-1.5-flash"
+        else:
+            return "Error: Neither OPENROUTER_API_KEY nor GEMINI_API_KEY is set."
+    except Exception as e:
+        return f"Error initializing client for recursive analysis: {e}"
+
+    # Read the file
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            text_content = f.read()
+    except Exception as e:
+        return f"Error reading file '{file_path}': {e}"
+
+    if not text_content.strip():
+        return "Error: File is empty."
+
+    # Chunk the text (Approx 4000 characters per chunk to stay very safe on context)
+    chunk_size = 4000
+    chunks = [text_content[i:i+chunk_size] for i in range(0, len(text_content), chunk_size)]
+    
+    if len(chunks) == 1:
+        # If it's small, no need for recursion
+        messages = [{"role": "user", "content": f"Document: {chunks[0]}\n\nTask: {question}"}]
+        return client.chat(model=model_name, messages=messages).get("content", "Failed.")
+
+    current_state = "No relevant information found yet."
+    
+    for i, chunk in enumerate(chunks):
+        prompt = f"""
+You are an AI doing a rolling analysis of a massive document.
+User's Ultimate Goal: {question}
+
+Current state of knowledge (Summary so far):
+{current_state}
+
+Next chunk of the document (Part {i+1} of {len(chunks)}):
+---
+{chunk}
+---
+
+Instructions:
+1. Analyze this new chunk.
+2. Does it contain information relevant to the User's Ultimate Goal?
+3. Merge any new relevant information with your 'Current state of knowledge'.
+4. Output ONLY the updated, comprehensive state of knowledge. Do not include introductory text like 'Here is the updated state'.
+"""
+        messages = [{"role": "user", "content": prompt}]
+        response = client.chat(model=model_name, messages=messages)
+        current_state = response.get("content", current_state).strip()
+
+    return f"--- Final Recursive Analysis Result ---\n{current_state}"
+
+@tool_message("Indexing document '{file_path}' into long-term memory...")
+def save_document_to_memory(file_path: str, collection_name: str = "agent_memory", persist_dir: str = "./chroma_db") -> str:
+    """
+    Reads a document and saves it permanently into the RAG (ChromaDB) long-term memory.
+    This allows the agent to automatically recall information from this document in future conversations.
+    
+    Args:
+        file_path (str): The local path to the document to save.
+        collection_name (str): The name of the ChromaDB collection (default: 'agent_memory').
+        persist_dir (str): The directory where ChromaDB is saved (default: './chroma_db').
+        
+    Returns:
+        str: Success or error message.
+    """
+    import os
+    import uuid
+    
+    if not os.path.exists(file_path):
+        return f"Error: File '{file_path}' not found."
+
+    text_content = ""
+    try:
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext == ".pdf":
+            try:
+                import PyPDF2
+                with open(file_path, "rb") as f:
+                    reader = PyPDF2.PdfReader(f)
+                    for page in reader.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text_content += page_text + "\n"
+            except ImportError:
+                return "Error: PyPDF2 is not installed. Cannot read PDF files."
+        else:
+            with open(file_path, "r", encoding="utf-8") as f:
+                text_content = f.read()
+                
+        if not text_content.strip():
+            return "Error: The document is empty."
+
+        # Chunk the text into reasonable sizes for the vector database
+        chunk_size = 1500
+        # Use simple character splitting, preserving paragraph breaks if possible
+        raw_chunks = [text_content[i:i+chunk_size] for i in range(0, len(text_content), chunk_size)]
+        
+        try:
+            import chromadb
+            client = chromadb.PersistentClient(path=persist_dir)
+            collection = client.get_or_create_collection(name=collection_name)
+            
+            ids = [str(uuid.uuid4()) for _ in range(len(raw_chunks))]
+            metadatas = [{"source": os.path.basename(file_path), "path": file_path, "type": "document_tool_ingest"} for _ in range(len(raw_chunks))]
+            
+            collection.add(
+                documents=raw_chunks,
+                metadatas=metadatas,
+                ids=ids
+            )
+            
+            return f"Success: Document '{os.path.basename(file_path)}' has been chunked ({len(raw_chunks)} parts) and saved to long-term memory."
+            
+        except ImportError:
+            return "Error: chromadb is not installed."
+        except Exception as e:
+            return f"Error saving to database: {e}"
+            
+    except Exception as e:
+        return f"Error processing document: {e}"

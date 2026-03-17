@@ -68,6 +68,46 @@ class OpenAIClient(BaseClient):
             if delta.tool_calls:
                 for tc in delta.tool_calls: yield StreamEvent("tool_call", tc.model_dump())
 
+    def generate_image(self, prompt: str, **kwargs) -> Dict[str, Any]:
+        """Generates an image using OpenAI's DALL-E model."""
+        model = kwargs.pop("model", "dall-e-3")
+        response = self.client.images.generate(
+            model=model,
+            prompt=prompt,
+            **kwargs
+        )
+        return {"data": [img.model_dump() for img in response.data], "raw": response}
+
+    async def generate_image_async(self, prompt: str, **kwargs) -> Dict[str, Any]:
+        """Asynchronously generates an image using OpenAI's DALL-E model."""
+        model = kwargs.pop("model", "dall-e-3")
+        response = await self.async_client.images.generate(
+            model=model,
+            prompt=prompt,
+            **kwargs
+        )
+        return {"data": [img.model_dump() for img in response.data], "raw": response}
+
+    def speech_to_text(self, audio_file: Any, **kwargs) -> str:
+        """Converts audio to text using OpenAI Whisper."""
+        model = kwargs.pop("model", "whisper-1")
+        response = self.client.audio.transcriptions.create(
+            model=model,
+            file=audio_file,
+            **kwargs
+        )
+        return response.text
+
+    async def speech_to_text_async(self, audio_file: Any, **kwargs) -> str:
+        """Asynchronously converts audio to text using OpenAI Whisper."""
+        model = kwargs.pop("model", "whisper-1")
+        response = await self.async_client.audio.transcriptions.create(
+            model=model,
+            file=audio_file,
+            **kwargs
+        )
+        return response.text
+
 class GrokClient(OpenAIClient):
     def __init__(self, api_key: str): super().__init__(api_key=api_key, base_url="https://api.x.ai/v1")
 

@@ -77,3 +77,15 @@ class OllamaClient(BaseClient):
                     obj = json.loads(line)
                     if obj.get("done"): break
                     yield StreamEvent("token", obj.get("message", {}).get("content", ""))
+
+    def generate_image(self, prompt: str, **kwargs):
+        raise NotImplementedError("Ollama does not support image generation.")
+
+    async def generate_image_async(self, prompt: str, **kwargs):
+        raise NotImplementedError("Ollama does not support image generation.")
+
+    def speech_to_text(self, audio_file, **kwargs):
+        raise NotImplementedError("Ollama does not support speech-to-text.")
+
+    async def speech_to_text_async(self, audio_file, **kwargs):
+        raise NotImplementedError("Ollama does not support speech-to-text.")

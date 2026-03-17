@@ -43,7 +43,10 @@ class OpenRouterClient(BaseClient):
         params = self._clean_kwargs(kwargs)
         # Use hardcoded endpoint
         resp = self.session.post(self.endpoint, json={"model": model, "messages": messages, **params})
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            raise Exception(f"OpenRouter Error: {e} - Response: {resp.text}")
         data = resp.json()
         choice = data["choices"][0]
         return {"content": choice["message"].get("content"), "tool_calls": choice["message"].get("tool_calls"), "raw": data}
@@ -86,6 +89,18 @@ class OpenRouterClient(BaseClient):
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
                     for event in self._process_line(line.encode('utf-8')): yield event
+
+    def generate_image(self, prompt: str, **kwargs):
+        raise NotImplementedError("OpenRouter does not support image generation.")
+
+    async def generate_image_async(self, prompt: str, **kwargs):
+        raise NotImplementedError("OpenRouter does not support image generation.")
+
+    def speech_to_text(self, audio_file, **kwargs):
+        raise NotImplementedError("OpenRouter does not support speech-to-text.")
+
+    async def speech_to_text_async(self, audio_file, **kwargs):
+        raise NotImplementedError("OpenRouter does not support speech-to-text.")
 
     def _process_line(self, line_bytes):
         if not line_bytes: return

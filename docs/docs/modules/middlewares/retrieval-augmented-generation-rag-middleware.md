@@ -96,7 +96,34 @@ runner.use(rag)
 
 ## ChromaRAG
 
-`ChromaRAG` provides **semantic search** capabilities. Unlike keyword search, it understands the *meaning* of the text. For example, searching for "fruit" might retrieve "apple" even if the word "fruit" isn't explicitly mentioned.
+`ChromaRAG` provides **semantic search** capabilities. Unlike keyword search, it understands the *meaning* of the text. For example, searching for "fruit" might retrieve "apple" even if the word "fruit" isn't explicitly mentioned. 
+
+### Multimodal RAG & Custom Embeddings (v0.2.0)
+Starting from v0.2.0, `ChromaRAG` supports **Multimodal Embeddings**. This means you can save images, videos, or audio into the database, and search for them using text!
+
+To do this, you inject a custom `embedding_function` into the middleware.
+
+```python
+from agent_sdk.middleware import ChromaRAG
+from agent_sdk.embeddings.imagebind_embedder import ImageBindEmbeddingFunction
+# Or use Gemini's multimodal API: from agent_sdk.embeddings.gemini import GeminiMultimodalEmbedding
+
+# 1. Initialize the embedding model (runs locally)
+multimodal_embedder = ImageBindEmbeddingFunction(device="cuda")
+
+# 2. Inject it into ChromaRAG
+vector_rag = ChromaRAG(
+    collection_name="agent_memory",
+    persist_dir="./chroma_db",
+    embedding_function=multimodal_embedder
+)
+
+# 3. Add to your runner
+runner.use(vector_rag)
+
+# Now you can add videos or images to memory!
+vector_rag._add_memory(content="vacation_video.mp4", metadata={"type": "video", "year": "2023"})
+```
 
 ### Prerequisites
 You need to install the `chromadb` package:

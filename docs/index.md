@@ -8,6 +8,10 @@ keywords:
     - multi-agent systems
     - swarm intelligence
     - python agents
+    - agent
+    - agent sdk core
+    - agent core
+    - local agent
 hide:
   - navigation
   - toc

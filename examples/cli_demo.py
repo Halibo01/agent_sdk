@@ -71,6 +71,7 @@ from agent_sdk.middleware import (
 load_dotenv()
 init(autoreset=True)
 
+
 # --- UI CONSTANTS ---
 # In a real app, these would be in a config file or frontend theme.
 
@@ -113,6 +114,10 @@ def ui_printer(event: AgentStreamEvent):
         print()
         
         for call in event.data:
+            # Safe Access Check
+            if 'function' not in call or 'name' not in call['function']:
+                continue
+
             func_name = call['function']['name']
             
             # Filter out duplicate delegation logs if needed
@@ -148,15 +153,22 @@ def ui_printer(event: AgentStreamEvent):
         
         last_speaker = None
 
+# --- SECURE KEY STORAGE ---
+def get_secure_key():
+    # Attempt to get key from environment variables instead of hardcoding
+    import os
+    return os.environ.get("OPENROUTER_API_KEY", "")
+
 # --- MAIN APPLICATION LOGIC ---
 
 def main():
     print(f"{Back.WHITE}{Fore.BLACK} === AI AGENT SWARM (DEMO) === {Style.RESET_ALL}\n")
 
-    # [PROD NOTE] Configuration should be loaded from config.yaml or env vars
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        print(f"{Fore.RED}Error: OPENROUTER_API_KEY not found in .env file.{Style.RESET_ALL}")
+    # Load Secure Key
+    try:
+        api_key = get_secure_key()
+    except Exception as e:
+        print(f"{Fore.RED}Key Error: {e}{Style.RESET_ALL}")
         return
 
     # [PROD NOTE] You might want to retry connection on failure
@@ -165,14 +177,12 @@ def main():
     
     # --- MIDDLEWARE PIPELINE ---
     # Middleware executes in the order defined here.
-    
-    # 1. Safety First: Intercept dangerous tools
     runner.use(HumanInTheLoop(always_approve_for_debug=True)) 
     
-    # 2. Observability: Log everything
+
     runner.use(FileLogger(filename="agent_activity.jsonl"))
 
-    # 3. Context: Make agent aware of its environment
+
     runner.use(ContextInjector(
         env_keys=["PROJECT_ENV", "USER"], 
         static_context={
@@ -182,25 +192,19 @@ def main():
         }
     ))
 
-    # 4. Efficiency: Compress history to save tokens/cost
+
     runner.use(MemorySummarizer(threshold=20, keep_last=10))
 
-    # 5. Quality Control: Agent critiques its own work
-    runner.use(SelfReflection())
 
-    # 6. Long Term Memory (RAG)
-    # [PROD NOTE] Use ChromaRAG for production, SimpleRAG for prototypes.
     runner.use(ChromaRAG())
 
-    # --- AGENT SWARM SETUP ---
-    # We use a centralized Swarm manager to handle event printing and message routing.
     swarm = AgentSwarm(runner, event_handler=ui_printer)
 
-    # [PROD NOTE] Agent instructions should be refined and versioned in text files.
+
     
     manager = Agent(
         name="Manager",
-        model="xiaomi/mimo-v2-flash:free", 
+        model="arcee-ai/trinity-large-preview:free", 
         instructions="""
         You are the Project Manager.
         1. Analyze the user request.
@@ -213,7 +217,7 @@ def main():
 
     researcher = Agent(
         name="Researcher",
-        model="mistralai/devstral-2512:free",
+        model="arcee-ai/trinity-large-preview:free",
         instructions="""
         You are an Expert Researcher.
         1. Search the web for information.
@@ -226,7 +230,7 @@ def main():
 
     coder = Agent(
         name="Coder",
-        model="mistralai/devstral-2512:free",
+        model="arcee-ai/trinity-large-preview:free",
         instructions="""
         You are a Senior Software Engineer.
         1. Write code or create files as requested.
@@ -320,7 +324,31 @@ def main():
             print("\nExiting...")
             break
         except Exception as e:
-            print(f"\nUnexpected Error: {e}")
+            error_msg = f"Runtime Error in Loop: {e}"
+            print(f"\n{Fore.RED}{error_msg}{Style.RESET_ALL}")
+            
+            # Log to file
+            try:
+                with open("cli_demo_error.log", "a") as f:
+                    timestamp = datetime.datetime.now().isoformat()
+                    f.write(f"[{timestamp}] {error_msg}\n")
+                    traceback.print_exc(file=f)
+                    f.write("\n" + "-"*40 + "\n")
+            except:
+                pass # Fallback if logging fails
+
+import traceback
+import datetime
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        with open("cli_demo_error.log", "a") as f:
+            timestamp = datetime.datetime.now().isoformat()
+            f.write(f"[{timestamp}] CRITICAL ERROR:\n")
+            traceback.print_exc(file=f)
+            f.write("\n" + "-"*40 + "\n")
+        print(f"\n{Fore.RED}An error occurred. Check cli_demo_error.log for details.{Style.RESET_ALL}")
+        # Re-raise to show in console too if needed, or just exit
+        sys.exit(1)

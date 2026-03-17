@@ -21,6 +21,18 @@ class MockClient(BaseClient):
         yield AgentStreamEvent("token", "Async", "TestBot")
         yield AgentStreamEvent("final", None, "TestBot")
 
+    def generate_image(self, prompt: str, **kwargs) -> Dict[str, Any]:
+        return {"data": [{"url": "http://test.image"}], "raw": None}
+
+    async def generate_image_async(self, prompt: str, **kwargs) -> Dict[str, Any]:
+        return {"data": [{"url": "http://test.image"}], "raw": None}
+
+    def speech_to_text(self, audio_file: Any, **kwargs) -> str:
+        return "test speech"
+
+    async def speech_to_text_async(self, audio_file: Any, **kwargs) -> str:
+        return "test speech"
+
 class TestCore(unittest.TestCase):
     def test_agent_initialization(self):
         agent = Agent(name="TestBot", model="gpt-4", instructions="Be helpful.")

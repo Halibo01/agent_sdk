@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tests/test_comprehensive.py -v 2>&1)",
+      "Bash(where python3:*)",
+      "Bash(python3 -m pytest tests/test_comprehensive.py -v 2>&1)",
+      "Bash(conda info:*)",
+      "Bash(conda run:*)"
+    ]
+  }
+}

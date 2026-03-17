@@ -71,3 +71,15 @@ class AnthropicClient(BaseClient):
         async for event in stream:
             if event.type == 'content_block_delta' and event.delta.type == 'text_delta':
                 yield StreamEvent("token", event.delta.text)
+
+    def generate_image(self, prompt: str, **kwargs):
+        raise NotImplementedError("Anthropic does not support image generation.")
+
+    async def generate_image_async(self, prompt: str, **kwargs):
+        raise NotImplementedError("Anthropic does not support image generation.")
+
+    def speech_to_text(self, audio_file, **kwargs):
+        raise NotImplementedError("Anthropic does not support speech-to-text.")
+
+    async def speech_to_text_async(self, audio_file, **kwargs):
+        raise NotImplementedError("Anthropic does not support speech-to-text.")
