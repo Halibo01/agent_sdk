@@ -7,6 +7,7 @@ from .base import BaseClient
 
 class OpenRouterClient(BaseClient):
     def __init__(self, api_key: str = None, base_url: str = None): # base_url is ignored now
+        super().__init__()
         self.session = requests.Session()
         
         if api_key is None:
@@ -37,6 +38,8 @@ class OpenRouterClient(BaseClient):
             cleaned["max_tokens"] = cleaned.pop("max_output_tokens")
         if "stop_sequences" in cleaned:
             cleaned["stop"] = cleaned.pop("stop_sequences")
+        # Ensure we request usage in stream
+        cleaned["stream_options"] = {"include_usage": True}
         return cleaned
 
     def chat(self, model: str, messages: List[Dict], **kwargs) -> Dict[str, Any]:
@@ -48,6 +51,11 @@ class OpenRouterClient(BaseClient):
         except requests.exceptions.HTTPError as e:
             raise Exception(f"OpenRouter Error: {e} - Response: {resp.text}")
         data = resp.json()
+        
+        if "usage" in data:
+            u = data["usage"]
+            self.track_usage(model, u.get("prompt_tokens", 0), u.get("completion_tokens", 0))
+            
         choice = data["choices"][0]
         return {"content": choice["message"].get("content"), "tool_calls": choice["message"].get("tool_calls"), "raw": data}
 
@@ -58,6 +66,11 @@ class OpenRouterClient(BaseClient):
             resp = await client.post(self.endpoint, json={"model": model, "messages": messages, **params}, headers=self.headers)
             resp.raise_for_status()
             data = resp.json()
+            
+        if "usage" in data:
+            u = data["usage"]
+            self.track_usage(model, u.get("prompt_tokens", 0), u.get("completion_tokens", 0))
+            
         choice = data["choices"][0]
         return {"content": choice["message"].get("content"), "tool_calls": choice["message"].get("tool_calls"), "raw": data}
 
@@ -68,7 +81,7 @@ class OpenRouterClient(BaseClient):
         with self.session.post(self.endpoint, json={"model": model, "messages": messages, **params}, stream=True) as resp:
             resp.raise_for_status()
             for line in resp.iter_lines():
-                yield from self._process_line(line)
+                yield from self._process_line(line, model)
 
     async def chat_stream_async(self, model: str, messages: List[Dict], **kwargs) -> AsyncGenerator[StreamEvent, None]:
         params = self._clean_kwargs(kwargs)
@@ -88,7 +101,7 @@ class OpenRouterClient(BaseClient):
                 
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
-                    for event in self._process_line(line.encode('utf-8')): yield event
+                    for event in self._process_line(line.encode('utf-8'), model): yield event
 
     def generate_image(self, prompt: str, **kwargs):
         raise NotImplementedError("OpenRouter does not support image generation.")
@@ -102,13 +115,16 @@ class OpenRouterClient(BaseClient):
     async def speech_to_text_async(self, audio_file, **kwargs):
         raise NotImplementedError("OpenRouter does not support speech-to-text.")
 
-    def _process_line(self, line_bytes):
+    def _process_line(self, line_bytes, model_name=None):
         if not line_bytes: return
         line = line_bytes.decode("utf-8", errors="ignore").strip()
         if line.startswith("data:"): line = line[5:].strip()
         if line == "[DONE]": yield StreamEvent("final", None); return
         try:
             obj = json.loads(line)
+            if "usage" in obj and model_name:
+                u = obj["usage"]
+                self.track_usage(model_name, u.get("prompt_tokens", 0), u.get("completion_tokens", 0))
             if not obj.get("choices"): return
             delta = obj["choices"][0].get("delta", {})
             if "reasoning" in delta: yield StreamEvent("reasoning", delta["reasoning"])

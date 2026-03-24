@@ -4,6 +4,7 @@ from .base import BaseClient
 
 class GeminiClient(BaseClient):
     def __init__(self, api_key: str = None):
+        super().__init__()
         try:
             import google.generativeai as genai
             if api_key: # Only configure if API key is explicitly provided
@@ -69,6 +70,10 @@ class GeminiClient(BaseClient):
         config = self._get_generation_config(kwargs)
         chat = model_obj.start_chat(history=history)
         resp = chat.send_message(last_msg["parts"][0], generation_config=config)
+        
+        if hasattr(resp, 'usage_metadata') and resp.usage_metadata:
+            self.track_usage(model, resp.usage_metadata.prompt_token_count, resp.usage_metadata.candidates_token_count)
+            
         return {"content": resp.text, "raw": resp}
 
     async def chat_async(self, model: str, messages: List[Dict], **kwargs) -> Dict[str, Any]:
@@ -79,6 +84,10 @@ class GeminiClient(BaseClient):
         config = self._get_generation_config(kwargs)
         chat = model_obj.start_chat(history=history)
         resp = await chat.send_message_async(last_msg["parts"][0], generation_config=config)
+        
+        if hasattr(resp, 'usage_metadata') and resp.usage_metadata:
+            self.track_usage(model, resp.usage_metadata.prompt_token_count, resp.usage_metadata.candidates_token_count)
+            
         return {"content": resp.text, "raw": resp}
 
     def chat_stream(self, model: str, messages: List[Dict], **kwargs) -> Generator[StreamEvent, None, None]:
@@ -89,7 +98,10 @@ class GeminiClient(BaseClient):
         config = self._get_generation_config(kwargs)
         chat = model_obj.start_chat(history=history)
         resp = chat.send_message(last_msg["parts"][0], stream=True, generation_config=config)
-        for chunk in resp: yield StreamEvent("token", chunk.text)
+        for chunk in resp:
+            if hasattr(chunk, 'usage_metadata') and chunk.usage_metadata and chunk.usage_metadata.prompt_token_count > 0:
+                self.track_usage(model, chunk.usage_metadata.prompt_token_count, chunk.usage_metadata.candidates_token_count)
+            yield StreamEvent("token", chunk.text)
 
     async def chat_stream_async(self, model: str, messages: List[Dict], **kwargs) -> AsyncGenerator[StreamEvent, None]:
         sys_inst, history = self._convert_messages(messages)
@@ -99,7 +111,10 @@ class GeminiClient(BaseClient):
         config = self._get_generation_config(kwargs)
         chat = model_obj.start_chat(history=history)
         resp = await chat.send_message_async(last_msg["parts"][0], stream=True, generation_config=config)
-        async for chunk in resp: yield StreamEvent("token", chunk.text)
+        async for chunk in resp:
+            if hasattr(chunk, 'usage_metadata') and chunk.usage_metadata and chunk.usage_metadata.prompt_token_count > 0:
+                self.track_usage(model, chunk.usage_metadata.prompt_token_count, chunk.usage_metadata.candidates_token_count)
+            yield StreamEvent("token", chunk.text)
 
     def generate_image(self, prompt: str, **kwargs) -> Dict[str, Any]:
         """Generates an image using Gemini's ImageGenerationModel."""

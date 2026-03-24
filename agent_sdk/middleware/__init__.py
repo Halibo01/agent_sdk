@@ -24,7 +24,7 @@ from .context import ContextInjector
 from .storage import SQLiteLogger
 from .reflection import SelfReflection
 from .rag import SimpleRAG, ChromaRAG
-
+from .engram import EngramMiddleware
 
 __all__ = [
     "FileLogger",
@@ -35,4 +35,5 @@ __all__ = [
     "SelfReflection",
     "SimpleRAG",
     "ChromaRAG",
+    "EngramMiddleware",
 ]
