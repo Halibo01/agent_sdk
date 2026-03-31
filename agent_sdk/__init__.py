@@ -31,6 +31,7 @@ from .clients.ollama import OllamaClient
 from .clients.openai import OpenAIClient, GrokClient, DeepSeekClient, QwenClient, ZhipuClient
 from .clients.anthropic import AnthropicClient
 from .clients.gemini import GeminiClient
+from .clients.llamacpp import LlamaCppClient
 
 # Core
 from .runner import Runner
@@ -40,6 +41,7 @@ from .bridge import AgentBridge
 from .events import AgentStreamEvent
 from .decorators import tool_message, approval_required
 from .sandbox import LocalSandbox, DockerSandbox
+from .grammar import GrammarBuilder
 
 # Tools
 from .tools import (
@@ -59,7 +61,7 @@ from .tools import (
     save_file
 )
 
-__version__ = "0.2.0"
+__version__ = "1.0.0"
 
 
 __all__ = [
@@ -74,6 +76,7 @@ __all__ = [
     "ZhipuClient",
     "AnthropicClient",
     "GeminiClient",
+    "LlamaCppClient",
     
     # Core
     "Runner",
@@ -85,6 +88,7 @@ __all__ = [
     "approval_required",
     "LocalSandbox",
     "DockerSandbox",
+    "GrammarBuilder",
     
     # Tools
     "get_current_time",

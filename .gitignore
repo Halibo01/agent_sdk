@@ -90,3 +90,4 @@ agent_sdk/middleware/voice.py
 .vercel
 test_request.py
 /test_chroma_db
+/.claude

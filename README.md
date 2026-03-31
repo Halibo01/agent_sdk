@@ -1,4 +1,4 @@
-# Agent SDK 🤖 (v0.2.0)
+# Agent SDK 🤖 (v1.0.0)
 
 **Agent SDK** is a **Streaming-First**, **User-Friendly**, and **modular** AI Agent Framework built for Python.
 
@@ -378,10 +378,11 @@ Example: Collaboration between a Manager and a Coder agent:
 from agent_sdk import Agent, AgentSwarm
 from agent_sdk.tools import run_python_code
 
-manager = Agent(name="Manager", instructions="Analyze the task and delegate to Coder.")
+manager = Agent(name="Manager", model="gpt-4o", instructions="Analyze the task and delegate to Coder.")
 coder = Agent(
-    name="Coder", 
-    instructions="Write Python code.", 
+    name="Coder",
+    model="gpt-4o",
+    instructions="Write Python code.",
     tools={"run_code": run_python_code}
 )
 
@@ -491,7 +492,81 @@ class PerformanceMonitor(Middleware):
 runner.use(PerformanceMonitor())
 ```
 
-### 3. Asynchronous Execution (Async)
+### 3. GrammarBuilder (Structured Outputs / GBNF)
+
+**What is it?**  
+`GrammarBuilder` is a powerful engine that strictly forces an LLM to output exactly the format you want (JSON, XML, YAML, Markdown Tables). It translates native Python types (`str`, `int`, `list`, `dict`) into **GBNF (Context-Free Grammar)**. When used with local models (like `llama.cpp`) or injected into system prompts, it physically prevents the AI from hallucinating incorrect formats.
+
+#### Simple Usage
+Define your desired output structure using standard Python types (`str`, `int`, `float`, `bool`, `list`, `dict`) and let the builder compile it.
+
+```python
+from agent_sdk.grammar import GrammarBuilder
+
+builder = GrammarBuilder()
+
+# Define your structure using native Python types
+schema = dict(
+    product_list=list[dict( # "list" supports multiple items from same type of data
+        name=str,
+        price=float,        # Supports floating point numbers
+        quantity=int,
+        in_stock=bool       # Supports "true" or "false"
+    )]
+)
+
+# Generate strict JSON format
+json_rules = builder.to_json(**schema)
+print(json_rules)
+```
+
+#### Advanced Usage (Optionals, Lists & Custom Tokens)
+You can use Python's Union types (e.g., `| None`) for optional fields, use `list` to allow the LLM to generate multiple items, register entirely new primitive types using Regex, or use Python's `typing.Literal` to restrict choices.
+
+```python
+import typing
+
+# 1. Add a raw composite token
+builder.add_token("currency_symbol", '"$" | "€"')
+
+# 2. Register a custom type (e.g., Hex Color or precise Price format)
+builder.register_type("hex_color", "hex_val", '"\\"" "#" [0-9A-Fa-f]{6} "\\""')
+builder.register_type("price", "price_val", 'currency_symbol [0-9]+ "." [0-9]{2}')
+
+# 3. Use your custom types, optionals (| None), lists, and Literal choices
+advanced_schema = dict(
+    store_name=str,
+    # list[...] allows the LLM to generate multiple items (repeating tokens)
+    inventory=list[dict(
+        item_cost=builder.price,
+        category=typing.Literal["electronics", "clothing"], # LLM can ONLY output these words
+        theme_color=builder.hex_color | None # Using | None makes this field optional (can be null/empty)
+    )]
+)
+
+xml_rules = builder.to_xml(**advanced_schema)
+```
+
+#### Multi-Format Support
+The same schema can be exported to multiple formats instantly:
+*   `builder.to_json(**schema)`
+*   `builder.to_xml(**schema)`
+*   `builder.to_yaml(**schema)`
+*   `builder.to_markdown_table(**schema)`
+
+#### Using it in an Agent
+You can pass the generated schema directly to your agent. The SDK will automatically instruct the LLM to strictly follow your formatting rules.
+
+```python
+agent = Agent(
+    name="DataExtractor",
+    model="gpt-4o",
+    output_schema=builder.to_xml(**schema),
+    output_format="xml"
+)
+```
+
+### 4. Asynchronous Execution (Async)
 
 For high-performance applications (FastAPI, etc.):
 

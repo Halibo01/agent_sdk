@@ -47,7 +47,8 @@ class SimpleRAG(Middleware):
         summary_model (str): Optional specific model to use for title generation.
     """
 
-    def __init__(self, db_path: str = "agent_knowledge.db", title_summary: bool = False, summary_model: str = None):
+    def __init__(self, db_path: str = "agent_knowledge.db", title_summary: bool = False, summary_model: str = None,
+                 search_limit: int = 3, history_limit: int = 5):
         """
         Initializes the SimpleRAG middleware.
 
@@ -56,10 +57,14 @@ class SimpleRAG(Middleware):
             title_summary (bool): If True, uses LLM to generate session titles. Defaults to False.
             summary_model (str): Specific model to use for summarization (e.g., "gemini-2.0-flash").
                                  If None, the agent's current model is used.
+            search_limit (int): Max number of keyword search results to inject. Defaults to 3.
+            history_limit (int): Max number of recent history messages to inject. Defaults to 5.
         """
         self.db_path = db_path
         self.title_summary = title_summary
         self.summary_model = summary_model
+        self.search_limit = search_limit
+        self.history_limit = history_limit
         self._init_db()
 
     def _init_db(self):
@@ -181,6 +186,8 @@ class SimpleRAG(Middleware):
         try:
             # Synchronous call via runner's client
             response = runner.client.chat(model_to_use, [{"role": "user", "content": prompt}])
+            if isinstance(response, dict):
+                response = response.get("content", "")
             return response.strip().replace('"', '')
         except Exception as e:
             print(f"[SimpleRAG] Title Gen Error: {e}")
@@ -195,6 +202,8 @@ class SimpleRAG(Middleware):
         
         try:
             response = await runner.client.chat_async(model_to_use, [{"role": "user", "content": prompt}])
+            if isinstance(response, dict):
+                response = response.get("content", "")
             return response.strip().replace('"', '')
         except Exception as e:
             print(f"[SimpleRAG] Title Gen Async Error: {e}")
@@ -311,12 +320,12 @@ class SimpleRAG(Middleware):
         session_id = getattr(agent, "session_id", None)
         
         # 1. Search (Keyword)
-        search_context = self._search_memory(query, user_id=user_id, session_id=session_id)
-        
+        search_context = self._search_memory(query, user_id=user_id, session_id=session_id, limit=self.search_limit)
+
         # 2. Recent History (Context Window)
         recent_history = ""
         if session_id:
-            recent_history = self._get_recent_history(user_id, session_id, limit=5)
+            recent_history = self._get_recent_history(user_id, session_id, limit=self.history_limit)
         
         # Combine Contexts
         full_context = ""
@@ -338,7 +347,7 @@ class SimpleRAG(Middleware):
         
         # Headers identifying SimpleRAG injections
         headers = [
-            "RELEVANT MEMORY (Keyword Search):",
+            "RELEVANT MEMORY (Search):",
             "RECENT CONVERSATION HISTORY (Last 5 Messages):"
         ]
         
@@ -453,7 +462,8 @@ class ChromaRAG(Middleware):
     Note: This class does NOT manage the 'sessions' table or titles; that is handled by SimpleRAG.
     """
 
-    def __init__(self, collection_name: str = "agent_memory", persist_dir: str = "./chroma_db", embedding_function=None):
+    def __init__(self, collection_name: str = "agent_memory", persist_dir: str = "./chroma_db", embedding_function=None,
+                 search_limit: int = 2):
         """
         Initializes the ChromaRAG middleware.
 
@@ -461,10 +471,12 @@ class ChromaRAG(Middleware):
             collection_name (str): Name of the ChromaDB collection. Defaults to "agent_memory".
             persist_dir (str): Directory path for storing ChromaDB data. Defaults to "./chroma_db".
             embedding_function: Optional custom embedding function (e.g., ImageBindEmbeddingFunction or GeminiMultimodalEmbedding).
+            search_limit (int): Max number of semantic search results to inject. Defaults to 2.
         """
         self.collection_name = collection_name
         self.persist_dir = persist_dir
         self.embedding_function = embedding_function
+        self.search_limit = search_limit
         self.collection = None
         self._init_db()
 
@@ -482,7 +494,7 @@ class ChromaRAG(Middleware):
             if self.embedding_function:
                 print(f"[ChromaRAG] Custom embedding function loaded: {self.embedding_function.__class__.__name__}")
         except ImportError:
-            print("[ChromaRAG] Error: 'chromadb' not found. Please install via 'pip install chromadb' or use SimpleRAG.")
+            raise ImportError("[ChromaRAG] 'chromadb' not found. Please install via 'pip install chromadb' or use SimpleRAG.")
         except Exception as e:
             print(f"[ChromaRAG] Init Error: {e}")
 
@@ -574,8 +586,8 @@ class ChromaRAG(Middleware):
         user_id = getattr(agent, "user_id", None)
         session_id = getattr(agent, "session_id", None)
         
-        context = self._search_memory(last_msg.get("content", ""), user_id=user_id, session_id=session_id)
-        
+        context = self._search_memory(last_msg.get("content", ""), user_id=user_id, session_id=session_id, limit=self.search_limit)
+
         if context:
             print(f"\n[ChromaRAG] Found semantic memory (User: {user_id}, Session: {session_id}).")
             agent.memory.insert(len(agent.memory)-1, {
@@ -623,8 +635,8 @@ class ChromaRAG(Middleware):
         user_id = getattr(agent, "user_id", None)
         session_id = getattr(agent, "session_id", None)
         
-        context = await asyncio.to_thread(self._search_memory, last_msg.get("content", ""), user_id, session_id)
-        
+        context = await asyncio.to_thread(self._search_memory, last_msg.get("content", ""), user_id, session_id, self.search_limit)
+
         if context:
             print(f"\n[ChromaRAG] Found semantic memory (User: {user_id}, Session: {session_id}).")
             agent.memory.insert(len(agent.memory)-1, {

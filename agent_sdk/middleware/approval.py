@@ -13,7 +13,7 @@ class HumanInTheLoop(Middleware):
             always_approve_for_debug: If True, bypasses all checks.
         """
         self.always_approve_for_debug = always_approve_for_debug
-        self.session_approved_tools = set()
+        self.session_approved_tools = {}
         self.approval_callback = approval_callback or self._default_console_callback
 
     def _default_console_callback(self, agent_name: str, tool_name: str, args: dict, tool_call_id: str = None) -> str:
@@ -44,7 +44,8 @@ class HumanInTheLoop(Middleware):
     def before_tool_execution(self, agent, runner, tool_name: str, tool_args: dict, tool_call_id: str = None) -> bool:
         """Sync onay mekanizması"""
         if self.always_approve_for_debug: return True
-        if tool_name in self.session_approved_tools: return True
+        args_key = json.dumps(tool_args, sort_keys=True)
+        if tool_name in self.session_approved_tools and args_key in self.session_approved_tools[tool_name]: return True
 
         tool_func = agent.tools.get(tool_name)
         if not tool_func: return True
@@ -55,14 +56,15 @@ class HumanInTheLoop(Middleware):
         if asyncio.iscoroutinefunction(self.approval_callback):
             print(f"{Fore.RED}Error: Async callback cannot be used in Sync mode.{Style.RESET_ALL}")
             return False
-        
+
         decision = self.approval_callback(agent.name, tool_name, tool_args, tool_call_id)
-        return self._process_decision(decision, tool_name)
+        return self._process_decision(decision, tool_name, tool_args)
 
     async def before_tool_execution_async(self, agent, runner, tool_name: str, tool_args: dict, tool_call_id: str = None) -> bool:
         """Async onay mekanizması"""
         if self.always_approve_for_debug: return True
-        if tool_name in self.session_approved_tools: return True
+        args_key = json.dumps(tool_args, sort_keys=True)
+        if tool_name in self.session_approved_tools and args_key in self.session_approved_tools[tool_name]: return True
 
         tool_func = agent.tools.get(tool_name)
         if not tool_func: return True
@@ -78,14 +80,15 @@ class HumanInTheLoop(Middleware):
             else:
                 decision = self.approval_callback(agent.name, tool_name, tool_args, tool_call_id)
 
-        return self._process_decision(decision, tool_name)
+        return self._process_decision(decision, tool_name, tool_args)
 
-    def _process_decision(self, decision: str, tool_name: str) -> bool:
+    def _process_decision(self, decision: str, tool_name: str, tool_args: dict) -> bool:
         if decision == "approve":
             print(f"{Fore.GREEN}✓ Action Approved.{Style.RESET_ALL}")
             return True
         elif decision == "allow_always":
-            self.session_approved_tools.add(tool_name)
+            args_key = json.dumps(tool_args, sort_keys=True)
+            self.session_approved_tools.setdefault(tool_name, set()).add(args_key)
             print(f"{Fore.GREEN}✓ '{tool_name}' approved for this session.{Style.RESET_ALL}")
             return True
         else:

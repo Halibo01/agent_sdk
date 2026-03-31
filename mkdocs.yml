@@ -49,12 +49,13 @@ nav:
   - Docs: 
     - Introduction: docs/index.md
     - Getting Started:
-        - Installation: getting-started/installation.md
-        - Quick Start: getting-started/quickstart.md
+        - Installation: docs/getting-started/installation.md
+        - Quick Start: docs/getting-started/quickstart.md
     
     - Core Modules:
         - Universal Clients: docs/modules/universal-llm-clients.md
         - Agents & Runners: docs/modules/agents-and-runners-core-concepts.md
+        - Grammar & Structured Outputs: docs/modules/grammar-builder.md
         - Middleware System:
             - Overview: docs/modules/middlewares/index.md
             - RAG & Knowledge: docs/modules/middlewares/retrieval-augmented-generation-rag-middleware.md

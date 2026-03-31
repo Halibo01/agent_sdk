@@ -12,9 +12,9 @@ Available Middleware:
 - **SQLiteLogger**: Logs activity to a SQLite database.
 - **MemorySummarizer**: Compresses conversation history to save tokens.
 - **SimpleRAG / ChromaRAG**: Retrieval-Augmented Generation for long-term memory.
-- **GoogleRAG**: Semantic RAG using Google Embedding API with SQLite storage.
 - **SelfReflection**: Verification step where an LLM critiques the agent's plan/output.
 - **ContextInjector**: Injects static or dynamic variables into the agent's context.
+- **TTSMiddleware**: Text-to-Speech middleware supporting Edge TTS, OpenAI, and ElevenLabs.
 """
 
 from .logger import FileLogger
@@ -25,6 +25,7 @@ from .storage import SQLiteLogger
 from .reflection import SelfReflection
 from .rag import SimpleRAG, ChromaRAG
 from .engram import EngramMiddleware
+from .voice import TTSMiddleware
 
 __all__ = [
     "FileLogger",
@@ -36,4 +37,5 @@ __all__ = [
     "SimpleRAG",
     "ChromaRAG",
     "EngramMiddleware",
+    "TTSMiddleware",
 ]

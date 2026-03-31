@@ -20,6 +20,7 @@ from .ollama import OllamaClient
 from .openai import OpenAIClient, GrokClient, DeepSeekClient, QwenClient, ZhipuClient
 from .anthropic import AnthropicClient
 from .gemini import GeminiClient
+from .llamacpp import LlamaCppClient
 
 __all__ = [
     "BaseClient",
@@ -31,5 +32,6 @@ __all__ = [
     "QwenClient",
     "ZhipuClient",
     "AnthropicClient",
-    "GeminiClient"
+    "GeminiClient",
+    "LlamaCppClient"
 ]

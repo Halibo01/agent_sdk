@@ -98,8 +98,8 @@ runner.use(rag)
 
 `ChromaRAG` provides **semantic search** capabilities. Unlike keyword search, it understands the *meaning* of the text. For example, searching for "fruit" might retrieve "apple" even if the word "fruit" isn't explicitly mentioned. 
 
-### Multimodal RAG & Custom Embeddings (v0.2.0)
-Starting from v0.2.0, `ChromaRAG` supports **Multimodal Embeddings**. This means you can save images, videos, or audio into the database, and search for them using text!
+### Multimodal RAG & Custom Embeddings (v1.0.0)
+Starting from v1.0.0, `ChromaRAG` supports **Multimodal Embeddings**. This means you can save images, videos, or audio into the database, and search for them using text!
 
 To do this, you inject a custom `embedding_function` into the middleware.
 

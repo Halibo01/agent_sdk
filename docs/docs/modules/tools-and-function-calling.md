@@ -56,7 +56,7 @@ The SDK comes with several built-in tools in `agent_sdk.tools`:
 *   `list_directory(path)`: Lists folder contents.
 *   `run_python_code(code)`: Executes code in a sandbox.
 
-### Advanced RLM & Data Analysis Tools (v0.2.0)
+### Advanced RLM & Data Analysis Tools (v1.0.0)
 
 For interacting with complex data, large documents, and multimodal inputs, the SDK provides the following advanced tools:
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-sdk-core"
-version = "0.2.0"
+version = "1.0.0"
 description = "A lightweight, zero-dependency focused AI Agent Framework for Python."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -37,7 +37,10 @@ openai = ["openai>=1.12.0"]
 anthropic = ["anthropic>=0.18.0"]
 gemini = ["google-generativeai>=0.4.0"]
 ollama = ["ollama"]
+llamacpp = ["llama-cpp-python"]
 rag = ["chromadb>=0.4.0"]
+embeddings = ["google-generativeai>=0.4.0", "imagebind"]
+tts = ["edge-tts", "openai>=1.12.0"]
 tools = ["duckduckgo-search>=5.0.0", "wikipedia"]
 
 docs = [
@@ -59,9 +62,12 @@ all = [
     "anthropic>=0.18.0",
     "google-generativeai>=0.4.0",
     "ollama",
+    "llama-cpp-python",
     "chromadb>=0.4.0",
     "duckduckgo-search>=5.0.0",
     "wikipedia",
+    "imagebind",
+    "edge-tts",
 ]
 
 [project.urls]
@@ -77,12 +83,23 @@ namespaces = false
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q"
+addopts = "-ra -q --asyncio-mode=auto"
 testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 120
 target-version = "py39"
+select = ["E", "F", "B", "I"]
+ignore = ["E501"]
 
 [tool.black]
 line-length = 120

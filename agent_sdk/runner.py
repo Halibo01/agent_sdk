@@ -38,8 +38,6 @@ REASONING_KEYWORDS = [
 class Runner:
     def __init__(self, client):
         self.client = client
-        # Stack Structure for Caller ID
-        # "User" is always at the bottom.
         self.agent_stack = ["User"]
         self.middlewares = []
 
@@ -85,6 +83,83 @@ class Runner:
         messages.append({"role": "user", "content": input_text})
         
         return messages
+
+    def _parse_text_for_tool_calls(self, text: str) -> List[Dict]:
+        """
+        Parses raw text to find tool calls. This acts as a ReAct parser for local models 
+        that do not support native API tool calling (e.g. Qwen XML format or Markdown JSON).
+        """
+        if not text: return []
+        tool_calls = []
+        import re
+        import json
+        import uuid
+
+        # 1. Check for Qwen-style XML tool calls: <tool_call>\n<function=name>\n<parameter=key>val</parameter>\n</function>\n</tool_call>
+        if "<tool_call>" in text:
+            tool_blocks = re.findall(r"<tool_call>(.*?)</tool_call>", text, re.DOTALL)
+            for block in tool_blocks:
+                func_match = re.search(r"<function=([^>]+)>", block)
+                if func_match:
+                    func_name = func_match.group(1).strip()
+                    args = {}
+                    param_blocks = re.findall(r"<parameter=([^>]+)>(.*?)</parameter>", block, re.DOTALL)
+                    for p_name, p_val in param_blocks:
+                        args[p_name.strip()] = p_val.strip()
+                    
+                    tool_calls.append({
+                        "id": f"call_{uuid.uuid4().hex[:8]}",
+                        "type": "function",
+                        "function": {"name": func_name, "arguments": json.dumps(args)}
+                    })
+        
+        # 2. Check for standard Markdown JSON blocks
+        if not tool_calls and "```json" in text:
+            json_blocks = re.findall(r"```json\s*(.*?)\s*```", text, re.DOTALL)
+            for block in json_blocks:
+                try:
+                    data = json.loads(block)
+                    if isinstance(data, dict) and "name" in data:
+                        args_key = "arguments" if "arguments" in data else "parameters" if "parameters" in data else None
+                        if args_key:
+                            tool_calls.append({
+                                "id": f"call_{uuid.uuid4().hex[:8]}",
+                                "type": "function",
+                                "function": {
+                                    "name": data["name"], 
+                                    "arguments": json.dumps(data[args_key]) if isinstance(data[args_key], dict) else data[args_key]
+                                }
+                            })
+                except (json.JSONDecodeError, ValueError, KeyError, TypeError):
+                    pass
+
+        # 3. Fallback: Check for raw JSON without markdown blocks (like Llama-3 or Mistral)
+        text_clean = text.strip()
+        if not tool_calls and (text_clean.startswith("{") or text_clean.startswith("[")):
+            try:
+                parsed_data = json.loads(text_clean)
+                # Mistral outputs a list of tool calls: [{"name": "...", "arguments": {...}}]
+                if isinstance(parsed_data, list):
+                    items = parsed_data
+                else:
+                    items = [parsed_data]
+                    
+                for data in items:
+                    if isinstance(data, dict) and "name" in data:
+                        args_key = "arguments" if "arguments" in data else "parameters" if "parameters" in data else None
+                        if args_key:
+                            tool_calls.append({
+                                "id": f"call_{uuid.uuid4().hex[:8]}",
+                                "type": "function",
+                                "function": {
+                                    "name": data["name"], 
+                                    "arguments": json.dumps(data[args_key]) if isinstance(data[args_key], dict) else data[args_key]
+                                }
+                            })
+            except (json.JSONDecodeError, ValueError, KeyError, TypeError):
+                pass
+
+        return tool_calls
 
     def _tool_schema(self, agent: Agent) -> Optional[List[Dict]]:
         """
@@ -172,20 +247,15 @@ class Runner:
         Main Execution Loop (Persistent Memory Supported).
         """
         
-        # 0. MIDDLEWARE: Before Run
         for mw in self.middlewares:
             mw.before_run(agent, self)
 
-        # 1. CALLER ID: Add this agent to stack (Make active)
         self.agent_stack.append(agent.name)
 
-        # 2. INITIALIZE MEMORY (If empty)
         if not agent.memory:
-            # A) Add System Prompt
             if agent.instructions:
                 is_reasoning = self._is_reasoning_model(agent.model)
                 if is_reasoning:
-                    # Reasoning models dislike system role, add as user
                     agent.memory.append({
                         "role": "user", 
                         "content": f"Instructions:\n{agent.system_prompt()}"
@@ -196,24 +266,18 @@ class Runner:
                         "content": agent.system_prompt()
                     })
             
-            # B) Add external history if provided (Optional for initial start)
             if chat_history:
                 agent.memory.extend(chat_history)
 
-        # 3. ADD NEW TASK
-        # Add task to memory every time it is called.
         agent.memory.append({"role": "user", "content": task})
 
         try:
             # Infinite loop protection
             for step in range(agent.max_steps):
                 
-                # Prepare Tool Schema
                 tools = self._tool_schema(agent)
 
-                # B) API REQUEST (STREAM)
                 try:
-                    # NOW USING MEMORY DIRECTLY
                     stream = self.client.chat_stream(
                         model=agent.model,
                         messages=agent.memory,
@@ -233,12 +297,70 @@ class Runner:
                 current_content = ""
                 current_tool_calls = {}
                 
+                # Stream hiding state
+                text_buffer = ""
+                hiding_output = False
+                
                 # --- STREAM LOOP ---
-                for event in stream:
-                    # Process Agent Name (Runner responsibility)
-                    event.agent_name = agent.name
-                    
-                    yield event
+                for raw_event in stream:
+                    # We create a new event to avoid mutating the original if it's cached
+                    event = AgentStreamEvent(raw_event.type, raw_event.data, agent.name)
+
+                    if event.type == "token":
+                        chunk = str(event.data)
+                        current_content += chunk
+                        text_buffer += chunk
+                        
+                        if not hiding_output:
+                            # Check if we might be entering a tool call block
+                            if "<tool_call>" in text_buffer or "```json" in text_buffer:
+                                hiding_output = True
+                                # Find where it started to yield the text before it
+                                split_idx = text_buffer.find("<tool_call>")
+                                if split_idx == -1: split_idx = text_buffer.find("```json")
+                                
+                                if split_idx > 0:
+                                    safe_text = text_buffer[:split_idx]
+                                    event.data = safe_text
+                                    yield event
+                                    
+                                # Keep the rest in buffer to track when it ends
+                                text_buffer = text_buffer[split_idx:]
+                                continue
+                                
+                            # Check for raw JSON tool calls (like Llama 3) e.g. {"name": ...} or [{"name": ...}]
+                            elif current_content.strip().startswith('{"name":') or current_content.strip().startswith('[{"name":'):
+                                hiding_output = True
+                                text_buffer = current_content # hide everything
+                                continue
+                                
+                            elif "<" in text_buffer or "`" in text_buffer or (current_content.strip() in ["{", '{"', '{"n', '{"na', '{"nam', '{"name', "[", '[{', '[{"', '[{"n', '[{"na', '[{"nam', '[{"name']):
+                                # Might be the start of a tag or raw json tool call, hold it briefly (max 15 chars)
+                                if len(text_buffer) < 20:
+                                    continue
+                                
+                            # Safe to yield
+                            event.data = text_buffer
+                            yield event
+                            text_buffer = ""
+                            
+                        else:
+                            # We are hiding output. Wait for the closing tags.
+                            if "</tool_call>" in text_buffer or (text_buffer.count("```") >= 2):
+                                hiding_output = False
+                                # Find where it ended
+                                end_idx = text_buffer.find("</tool_call>")
+                                if end_idx != -1:
+                                    text_buffer = text_buffer[end_idx + 12:]
+                                else:
+                                    # For json block, find the second ```
+                                    first_idx = text_buffer.find("```")
+                                    second_idx = text_buffer.find("```", first_idx + 3)
+                                    text_buffer = text_buffer[second_idx + 3:]
+                            continue
+                            
+                    else:
+                        yield event
 
                     # --- MIDDLEWARE STREAM HOOK ---
                     for mw in self.middlewares:
@@ -249,16 +371,10 @@ class Runner:
                                 yield ne
                     # ------------------------------
                     
-                    if event.type == "token":
-                        current_content += str(event.data)
-                        # yield event (Moved up)
-                    
-                    elif event.type == "reasoning":
-                        # yield event (Moved up)
+                    if event.type == "reasoning":
                         pass
                     
                     elif event.type == "tool_call":
-                        # Logic to merge tool call chunks
                         tc_chunk = event.data
                         idx = tc_chunk.get("index", 0)
                         
@@ -270,13 +386,22 @@ class Runner:
                             if fn.get("name"): current_tool_calls[idx]["name"] = fn["name"]
                             if fn.get("arguments"): current_tool_calls[idx]["arguments"] += fn["arguments"]
                         
-                        # For UI Effect (During Stream)
-                        yield AgentStreamEvent("tool_call_ready", [tc_chunk], agent.name) # Type: tool_call_chunk
+                        yield AgentStreamEvent("tool_call_ready", [tc_chunk], agent.name)
+
+                # Yield any remaining safe text in buffer
+                if text_buffer and not hiding_output:
+                    yield AgentStreamEvent("token", text_buffer, agent.name)
 
                 # --- DECISION MOMENT (END OF LOOP) ---
                 
-                # 1. ADD Model Response to MEMORY
-                assistant_msg = {"role": "assistant", "content": current_content if current_content else None}
+                # Clean the raw XML/JSON from the memory so the agent's history is clean
+                clean_memory_content = current_content
+                import re
+                clean_memory_content = re.sub(r"<tool_call>.*?</tool_call>", "", clean_memory_content, flags=re.DOTALL)
+                clean_memory_content = re.sub(r"```json.*?```", "", clean_memory_content, flags=re.DOTALL)
+                clean_memory_content = clean_memory_content.strip()
+
+                assistant_msg = {"role": "assistant", "content": clean_memory_content if clean_memory_content else None}
                 
                 tool_calls_data = []
                 if current_tool_calls:
@@ -288,6 +413,13 @@ class Runner:
                             "function": {"name": tc["name"], "arguments": tc["arguments"]}
                         })
                     assistant_msg["tool_calls"] = tool_calls_data
+                else:
+                    # Fallback for Local/GGUF models that output tools as text (XML or JSON)
+                    text_tools = self._parse_text_for_tool_calls(current_content)
+                    if text_tools:
+                        tool_calls_data = text_tools
+                        # For history correctness, we tell the API this was a tool call
+                        assistant_msg["tool_calls"] = tool_calls_data
                 
                 agent.memory.append(assistant_msg)
 
@@ -304,7 +436,7 @@ class Runner:
                     
                     try:
                         args = json.loads(raw_args)
-                    except:
+                    except (json.JSONDecodeError, ValueError):
                         args = {}
 
                     # --- MIDDLEWARE CHECK (Human-in-the-loop etc.) ---
@@ -349,9 +481,9 @@ class Runner:
 
                         try:
                             msg = tmpl.format(**args)
-                        except:
+                        except (KeyError, IndexError, ValueError):
                             msg = tmpl
-                        
+
                         yield AgentStreamEvent("tool_call_ready", [{
                             "function": {"name": func_name, "arguments": raw_args},
                             "message": msg
@@ -359,7 +491,20 @@ class Runner:
 
                         try:
                             # FUNCTION CALL
-                            result = agent.tools[func_name](**args)
+                            tool_func = agent.tools[func_name]
+                            if inspect.iscoroutinefunction(tool_func):
+                                try:
+                                    loop = asyncio.get_event_loop()
+                                    if loop.is_running():
+                                        import concurrent.futures
+                                        with concurrent.futures.ThreadPoolExecutor() as pool:
+                                            result = pool.submit(asyncio.run, tool_func(**args)).result()
+                                    else:
+                                        result = loop.run_until_complete(tool_func(**args))
+                                except RuntimeError:
+                                    result = asyncio.run(tool_func(**args))
+                            else:
+                                result = tool_func(**args)
                             result_str = str(result)
                         except Exception as e:
                             result_str = f"Error: {e}"
@@ -443,11 +588,59 @@ class Runner:
 
                 current_content = ""
                 current_tool_calls = {}
-                
+
+                text_buffer = ""
+                hiding_output = False
+
                 async for event in stream:
                     event.agent_name = agent.name
-                    
-                    yield event
+
+                    if event.type == "token":
+                        chunk = str(event.data)
+                        current_content += chunk
+                        text_buffer += chunk
+
+                        if not hiding_output:
+                            # Check if we might be entering a tool call block
+                            if "<tool_call>" in text_buffer or "```json" in text_buffer:
+                                hiding_output = True
+                                split_idx = text_buffer.find("<tool_call>")
+                                if split_idx == -1: split_idx = text_buffer.find("```json")
+
+                                if split_idx > 0:
+                                    safe_text = text_buffer[:split_idx]
+                                    event.data = safe_text
+                                    yield event
+
+                                text_buffer = text_buffer[split_idx:]
+                                continue
+
+                            elif current_content.strip().startswith('{"name":') or current_content.strip().startswith('[{"name":'):
+                                hiding_output = True
+                                text_buffer = current_content
+                                continue
+
+                            elif "<" in text_buffer or "`" in text_buffer or (current_content.strip() in ["{", '{"', '{"n', '{"na', '{"nam', '{"name', "[", '[{', '[{"', '[{"n', '[{"na', '[{"nam', '[{"name']):
+                                if len(text_buffer) < 20:
+                                    continue
+
+                            event.data = text_buffer
+                            yield event
+                            text_buffer = ""
+
+                        else:
+                            if "</tool_call>" in text_buffer or (text_buffer.count("```") >= 2):
+                                hiding_output = False
+                                end_idx = text_buffer.find("</tool_call>")
+                                if end_idx != -1:
+                                    text_buffer = text_buffer[end_idx + 12:]
+                                else:
+                                    first_idx = text_buffer.find("```")
+                                    second_idx = text_buffer.find("```", first_idx + 3)
+                                    text_buffer = text_buffer[second_idx + 3:]
+                            continue
+                    else:
+                        yield event
 
                     # --- MIDDLEWARE STREAM HOOK (ASYNC) ---
                     for mw in self.middlewares:
@@ -457,15 +650,10 @@ class Runner:
                                 ne.agent_name = agent.name
                                 yield ne
                     # --------------------------------------
-                    
-                    if event.type == "token":
-                        current_content += str(event.data)
-                        # yield event (Moved up)
-                    
-                    elif event.type == "reasoning":
-                        # yield event (Moved up)
+
+                    if event.type == "reasoning":
                         pass
-                    
+
                     elif event.type == "tool_call":
                         tc_chunk = event.data
                         idx = tc_chunk.get("index", 0)
@@ -480,7 +668,18 @@ class Runner:
                         
                         yield AgentStreamEvent("tool_call_ready", [tc_chunk], agent.name)
 
-                assistant_msg = {"role": "assistant", "content": current_content if current_content else None}
+                # Yield any remaining safe text in buffer
+                if text_buffer and not hiding_output:
+                    yield AgentStreamEvent("token", text_buffer, agent.name)
+
+                # Clean the raw XML/JSON from the memory so the agent's history is clean
+                clean_memory_content = current_content
+                import re
+                clean_memory_content = re.sub(r"<tool_call>.*?</tool_call>", "", clean_memory_content, flags=re.DOTALL)
+                clean_memory_content = re.sub(r"```json.*?```", "", clean_memory_content, flags=re.DOTALL)
+                clean_memory_content = clean_memory_content.strip()
+
+                assistant_msg = {"role": "assistant", "content": clean_memory_content if clean_memory_content else None}
                 
                 tool_calls_data = []
                 if current_tool_calls:
@@ -492,6 +691,13 @@ class Runner:
                             "function": {"name": tc["name"], "arguments": tc["arguments"]}
                         })
                     assistant_msg["tool_calls"] = tool_calls_data
+                else:
+                    # Fallback for Local/GGUF models that output tools as text (XML or JSON)
+                    text_tools = self._parse_text_for_tool_calls(current_content)
+                    if text_tools:
+                        tool_calls_data = text_tools
+                        # For history correctness, we tell the API this was a tool call
+                        assistant_msg["tool_calls"] = tool_calls_data
                 
                 agent.memory.append(assistant_msg)
 
@@ -506,7 +712,7 @@ class Runner:
                     
                     try:
                         args = json.loads(raw_args)
-                    except:
+                    except (json.JSONDecodeError, ValueError):
                         args = {}
 
                     should_run = True
@@ -539,7 +745,7 @@ class Runner:
                         tmpl = getattr(tool_func, "_message_template", None)
                         if not tmpl: tmpl = f"Running {func_name} with {args}"
                         try: msg = tmpl.format(**args)
-                        except: msg = tmpl
+                        except (KeyError, IndexError, ValueError): msg = tmpl
                         
                         yield AgentStreamEvent("tool_call_ready", [{
                             "function": {"name": func_name, "arguments": raw_args},

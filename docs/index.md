@@ -260,7 +260,7 @@ hide:
     <section class="hero-section">
         <div class="hero-bg-glow"></div>
         <div class="hero-content">
-            <span class="badge">v0.2.0 Beta</span>
+            <span class="badge">v1.0.0 Stable</span>
             <h1 class="hero-title">
                 Build Intelligent <br>
                 <span class="text-gradient">Agents & Swarms</span>

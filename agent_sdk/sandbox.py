@@ -19,7 +19,25 @@ import ast
 import io
 import contextlib
 import traceback
+import concurrent.futures
 from typing import Dict, Any, Optional
+
+# Safe builtins whitelist for sandboxed execution
+_SAFE_BUILTINS = {
+    'print': print, 'len': len, 'range': range, 'int': int, 'str': str,
+    'float': float, 'bool': bool, 'list': list, 'dict': dict, 'tuple': tuple,
+    'set': set, 'enumerate': enumerate, 'zip': zip, 'map': map, 'filter': filter,
+    'sorted': sorted, 'reversed': reversed, 'min': min, 'max': max, 'sum': sum,
+    'abs': abs, 'round': round, 'isinstance': isinstance, 'type': type,
+    'hasattr': hasattr, 'getattr': getattr, 'setattr': setattr,
+    'True': True, 'False': False, 'None': None,
+    'Exception': Exception, 'ValueError': ValueError, 'TypeError': TypeError,
+    'KeyError': KeyError, 'IndexError': IndexError, 'StopIteration': StopIteration,
+    'iter': iter, 'next': next, 'repr': repr, 'chr': chr, 'ord': ord,
+    'hex': hex, 'oct': oct, 'bin': bin, 'all': all, 'any': any,
+    'input': input, 'open': None,  # Blocked
+    '__import__': None,  # Blocked
+}
 
 class BaseSandbox(abc.ABC):
     @abc.abstractmethod
@@ -43,44 +61,46 @@ class LocalSandbox(BaseSandbox):
                             E.g.: {'my_func': my_func, 'pd': pandas}
         """
         # Global namespace (memory) where code runs.
-        # Aside from standard __builtins__, we add custom objects provided by the user.
-        self.globals = {}
+        self.globals = {'__builtins__': _SAFE_BUILTINS}
         self.locals = {}
-        
-        # Safe builtins (Can be restricted optionally but kept standard for now)
-        # self.globals['__builtins__'] = __builtins__
-        
+
         if custom_globals:
             self.globals.update(custom_globals)
 
     def run_code(self, code: str, timeout: int = 30) -> str:
         """
         Executes code directly within the current process and captures output.
+        Enforces timeout using ThreadPoolExecutor.
         """
-        stdout_buffer = io.StringIO()
-        stderr_buffer = io.StringIO()
+        def _exec_code():
+            stdout_buffer = io.StringIO()
+            stderr_buffer = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(stderr_buffer):
+                    exec(code, self.globals, self.locals)
+
+                output = ""
+                stdout_val = stdout_buffer.getvalue()
+                stderr_val = stderr_buffer.getvalue()
+
+                if stdout_val:
+                    output += f"{stdout_val}\n"
+                if stderr_val:
+                    output += f"ERROR/STDERR:\n{stderr_val}\n"
+
+                if not output.strip():
+                    return "(Code executed successfully with no output)"
+
+                return output.strip()
+            except Exception:
+                return f"Execution Error:\n{traceback.format_exc()}"
 
         try:
-            with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(stderr_buffer):
-                # Execute code
-                exec(code, self.globals, self.locals)
-            
-            output = ""
-            stdout_val = stdout_buffer.getvalue()
-            stderr_val = stderr_buffer.getvalue()
-
-            if stdout_val:
-                output += f"{stdout_val}\n"
-            if stderr_val:
-                output += f"ERROR/STDERR:\n{stderr_val}\n"
-            
-            if not output.strip():
-                return "(Code executed successfully with no output)"
-            
-            return output.strip()
-
-        except Exception:
-            return f"Execution Error:\n{traceback.format_exc()}"
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(_exec_code)
+                return future.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            return f"Error: Execution timed out after {timeout} seconds."
 
     async def run_code_async(self, code: str, timeout: int = 30) -> str:
         """
@@ -91,7 +111,7 @@ class LocalSandbox(BaseSandbox):
                 asyncio.to_thread(self.run_code, code, timeout),
                 timeout=timeout
             )
-        except asyncio.TimeoutExpired:
+        except asyncio.TimeoutError:
             return "Error: Execution timed out (Thread is still running in background)."
         except Exception as e:
             return f"Async Execution Error: {e}"
@@ -130,6 +150,7 @@ class DockerSandbox(BaseSandbox):
                 network_disabled=True, # Disable internet
                 remove=True, # Delete after finish
                 detach=False, # Wait
+                timeout=timeout,
                 stdout=True,
                 stderr=True
             )
